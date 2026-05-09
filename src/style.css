@@ -1,0 +1,81 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@300;400;600&display=swap');
+
+:root {
+  --bg-color: #050505;
+  --panel-bg: rgba(15, 15, 15, 0.7);
+  --primary-color: #ff2a2a;
+  --primary-glow: rgba(255, 42, 42, 0.5);
+  --secondary-color: #ffb703;
+  --secondary-glow: rgba(255, 183, 3, 0.4);
+  --text-color: #f0f0f0;
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --lava-gradient: linear-gradient(135deg, #ff2a2a 0%, #ff7b00 100%);
+}
+
+* {
+  margin: 0; padding: 0; box-sizing: border-box;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-family: 'Inter', sans-serif;
+  overflow: hidden;
+  height: 100vh;
+  background-image: 
+    radial-gradient(circle at 50% 50%, #1a0a0a 0%, #050505 100%);
+}
+
+#app {
+  width: 100%; height: 100vh;
+}
+
+.dragon-texture {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 0);
+  background-size: 50px 50px;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.glass-panel {
+  background: var(--panel-bg);
+  backdrop-filter: blur(10px); /* 降低模糊强度提升性能 */
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  will-change: transform, opacity; /* 硬件加速提示 */
+}
+
+/* 史诗级按钮 */
+.lava-btn {
+  background: var(--lava-gradient);
+  border: none;
+  color: white;
+  padding: 12px 28px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 4px 15px var(--primary-glow);
+}
+
+.lava-btn:hover {
+  transform: scale(1.05) translateY(-2px);
+  box-shadow: 0 8px 25px var(--primary-glow);
+}
+
+.lava-btn:disabled {
+  filter: grayscale(1);
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+h1, h2, h3 {
+  font-family: 'Orbitron', sans-serif;
+  letter-spacing: 2px;
+}
