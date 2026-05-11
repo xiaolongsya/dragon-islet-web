@@ -162,7 +162,7 @@
 import { ref, onMounted, nextTick, reactive } from 'vue';
 import axios from 'axios';
 
-axios.defaults.baseURL = 'http://localhost:8080';
+axios.defaults.baseURL = 'https://xiaolongya.cn/dragon';
 // 落地页状态
 const currentView = ref('home');
 const isThinking = ref(true);
@@ -201,7 +201,7 @@ const runTypewriter = (text, onDone) => {
 const fetchQuote = async () => {
   startThinkingRotation();
   try {
-    const r = await axios.get('/dragon/quote');
+    const r = await axios.get('/quote');
     quote.value = r.data;
   } catch {
     quote.value = { quote: '山知道我，我知道你，就已足够。', explain: '翻译成大白话：不需要全世界都懂我，你懂就够了。', type: 'wisdom' };
@@ -220,7 +220,8 @@ const fetchQuote = async () => {
 
 axios.interceptors.request.use(c => { const t = localStorage.getItem('token'); if(t) c.headers.Authorization=`Bearer ${t}`; return c; });
 
-const defAv = 'https://xiaolongya.cn/uploads/cd0bd1b8-415e-4a9f-bbbb-c31044a9b065.jpg';
+const defAv = 'https://xiaolongya.cn/uploads/1778432333617872906.jpg';
+const dragonAv = 'https://xiaolongya.cn/uploads/1778433348838960808.jpg';
 
 const messages = ref([]); const archives = ref([]); const newMsg = ref('');
 const isChecking = ref(false); const isLoggedIn = ref(!!localStorage.getItem('token'));
@@ -234,19 +235,19 @@ const editForm = reactive({username:'',avatar:''});
 
 const fmtTime = t => new Date(t).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
 const openModal = (m) => { if(m==='profile'){editForm.username=user.value.username;editForm.avatar=user.value.avatar||'';} authForm.username='';authForm.password='';authForm.phone='';authForm.code=''; modal.value=m; };
-const sendSms = async () => { if(!authForm.phone) return alert('请输入手机号'); try { await axios.post('/dragon/auth/send-sms',{phone:authForm.phone}); smsCooldown.value=60; const ti=setInterval(()=>{ if(smsCooldown.value>0)smsCooldown.value--; else clearInterval(ti); },1000); } catch(e){ alert(e.response?.data?.error||'发送失败'); }};
+const sendSms = async () => { if(!authForm.phone) return alert('请输入手机号'); try { await axios.post('/auth/send-sms',{phone:authForm.phone}); smsCooldown.value=60; const ti=setInterval(()=>{ if(smsCooldown.value>0)smsCooldown.value--; else clearInterval(ti); },1000); } catch(e){ alert(e.response?.data?.error||'发送失败'); }};
 
-const doLogin = async () => { try { const r=await axios.post('/dragon/auth/login',authForm); localStorage.setItem('token',r.data.token); localStorage.setItem('user',JSON.stringify(r.data.user)); isLoggedIn.value=true; user.value=r.data.user; modal.value=''; } catch(e){ alert(e.response?.data?.error||'登录失败'); }};
-const doRegister = async () => { try { await axios.post('/dragon/auth/register',authForm); alert('注册成功'); modal.value='login'; } catch(e){ alert(e.response?.data?.error||'失败'); }};
-const updateProfile = async () => { try { await axios.post('/dragon/user/profile',{nickname:editForm.username,avatar:editForm.avatar}); user.value.username=editForm.username; if(editForm.avatar) user.value.avatar=editForm.avatar; localStorage.setItem('user',JSON.stringify(user.value)); modal.value=''; } catch(e){ alert(e.response?.data?.error||'失败'); }};
-const uploadAvatar = async (e) => { const f=e.target.files[0]; if(!f) return; if(f.size>5*1024*1024) return alert('图片不能超过5MB'); const fd=new FormData(); fd.append('file',f); try { const r=await axios.post('/dragon/upload',fd); if(r.data.code===0) editForm.avatar=r.data.data.url; else alert(r.data.msg); } catch(err){ alert(err.response?.data?.msg||'上传失败'); }};
+const doLogin = async () => { try { const r=await axios.post('/auth/login',authForm); localStorage.setItem('token',r.data.token); localStorage.setItem('user',JSON.stringify(r.data.user)); isLoggedIn.value=true; user.value=r.data.user; modal.value=''; } catch(e){ alert(e.response?.data?.error||'登录失败'); }};
+const doRegister = async () => { try { await axios.post('/auth/register',authForm); alert('注册成功'); modal.value='login'; } catch(e){ alert(e.response?.data?.error||'失败'); }};
+const updateProfile = async () => { try { await axios.post('/user/profile',{nickname:editForm.username,avatar:editForm.avatar}); user.value.username=editForm.username; if(editForm.avatar) user.value.avatar=editForm.avatar; localStorage.setItem('user',JSON.stringify(user.value)); modal.value=''; } catch(e){ alert(e.response?.data?.error||'失败'); }};
+const uploadAvatar = async (e) => { const f=e.target.files[0]; if(!f) return; if(f.size>5*1024*1024) return alert('图片不能超过5MB'); const fd=new FormData(); fd.append('file',f); try { const r=await axios.post('/upload',fd); if(r.data.code===0) editForm.avatar=r.data.data.url; else alert(r.data.msg); } catch(err){ alert(err.response?.data?.msg||'上传失败'); }};
 const logout = () => { localStorage.clear(); window.location.reload(); };
 
 const send = async () => {
   if(!newMsg.value.trim()||isChecking.value||postCooldown.value>0) return;
   const content=newMsg.value; moderationStatus.value='examining'; isChecking.value=true; newMsg.value='';
   try {
-    const r=await axios.post('/dragon/chat/send',{content});
+    const r=await axios.post('/chat/send',{content});
     moderationStatus.value=r.data.will_reply?'pass-interested':'pass-ignored';
     setTimeout(()=>{ isChecking.value=false; moderationStatus.value=''; },1400);
     postCooldown.value=60; const ti=setInterval(()=>{ if(postCooldown.value>0)postCooldown.value--; else clearInterval(ti); },1000);
@@ -257,7 +258,7 @@ const send = async () => {
 };
 
 const fetchMessages = async () => {
-  const r = await axios.get('/dragon/chat/list');
+  const r = await axios.get('/chat/list');
   const data = r.data.data.reverse();
   messages.value = data;
   hasMore.value = r.data.has_more;
@@ -271,7 +272,7 @@ const loadMore = async () => {
   const box = msgBox.value;
   const prevH = box.scrollHeight;
   try {
-    const r = await axios.get(`/dragon/chat/list?before_id=${oldestID.value}`);
+    const r = await axios.get(`/chat/list?before_id=${oldestID.value}`);
     const older = r.data.data.reverse();
     messages.value = [...older, ...messages.value];
     hasMore.value = r.data.has_more;
@@ -282,8 +283,8 @@ const loadMore = async () => {
 };
 
 const scrollBottom = () => { if(msgBox.value) msgBox.value.scrollTop=msgBox.value.scrollHeight; };
-const fetchArchives = async () => { try { const r=await axios.get('/dragon/archives'); archives.value=r.data.data; } catch{}};
-const initWS = () => { const protocol=location.protocol==='https:'?'wss:':'ws:'; const host=location.port==='5173'?`${location.hostname}:8080`:location.host; const ws=new WebSocket(`${protocol}//${host}/dragon/ws`); ws.onmessage=(e)=>{ const m=JSON.parse(e.data); if(!messages.value.find(x=>x.ID===m.ID)){ messages.value.push(m); nextTick(scrollBottom); }}; ws.onclose=()=>setTimeout(initWS,3000); };
+const fetchArchives = async () => { try { const r=await axios.get('/archives'); archives.value=r.data.data; } catch{}};
+const initWS = () => { const protocol=location.protocol==='https:'?'wss:':'ws:'; const host=location.port==='5173'?`${location.hostname}:8888`:location.host; const ws=new WebSocket(`${protocol}//${host}/dragon/ws`); ws.onmessage=(e)=>{ const m=JSON.parse(e.data); if(!messages.value.find(x=>x.ID===m.ID)){ messages.value.push(m); nextTick(scrollBottom); }}; ws.onclose=()=>setTimeout(initWS,3000); };
 
 onMounted(()=>{ fetchQuote(); fetchMessages(); fetchArchives(); initWS(); });
 </script>
