@@ -162,7 +162,7 @@
 import { ref, onMounted, nextTick, reactive } from 'vue';
 import axios from 'axios';
 
-axios.defaults.baseURL = 'https://xiaolongya.cn/dragon';
+axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL;
 // 落地页状态
 const currentView = ref('home');
 const isThinking = ref(true);
@@ -220,8 +220,8 @@ const fetchQuote = async () => {
 
 axios.interceptors.request.use(c => { const t = localStorage.getItem('token'); if(t) c.headers.Authorization=`Bearer ${t}`; return c; });
 
-const defAv = 'https://xiaolongya.cn/uploads/1778432333617872906.jpg';
-const dragonAv = 'https://xiaolongya.cn/uploads/1778433348838960808.jpg';
+const defAv = `${import.meta.env.VITE_UPLOAD_BASE_URL}/1778432333617872906.jpg`;
+const dragonAv = `${import.meta.env.VITE_UPLOAD_BASE_URL}/1778433348838960808.jpg`;
 
 const messages = ref([]); const archives = ref([]); const newMsg = ref('');
 const isChecking = ref(false); const isLoggedIn = ref(!!localStorage.getItem('token'));
@@ -284,7 +284,7 @@ const loadMore = async () => {
 
 const scrollBottom = () => { if(msgBox.value) msgBox.value.scrollTop=msgBox.value.scrollHeight; };
 const fetchArchives = async () => { try { const r=await axios.get('/archives'); archives.value=r.data.data; } catch{}};
-const initWS = () => { const protocol=location.protocol==='https:'?'wss:':'ws:'; const host=location.port==='5173'?`${location.hostname}:8888`:location.host; const ws=new WebSocket(`${protocol}//${host}/dragon/ws`); ws.onmessage=(e)=>{ const m=JSON.parse(e.data); if(!messages.value.find(x=>x.ID===m.ID)){ messages.value.push(m); nextTick(scrollBottom); }}; ws.onclose=()=>setTimeout(initWS,3000); };
+const initWS = () => { const wsUrl = import.meta.env.VITE_WS_URL; const ws=new WebSocket(wsUrl); ws.onmessage=(e)=>{ const m=JSON.parse(e.data); if(!messages.value.find(x=>x.ID===m.ID)){ messages.value.push(m); nextTick(scrollBottom); }}; ws.onclose=()=>setTimeout(initWS,3000); };
 
 onMounted(()=>{ fetchQuote(); fetchMessages(); fetchArchives(); initWS(); });
 </script>
