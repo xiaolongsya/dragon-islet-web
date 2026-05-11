@@ -10,6 +10,12 @@
         <div class="nav-item" :class="{active: currentView==='chat'}" @click="currentView='chat'">
           <span class="n-ic">💬</span><span class="n-txt">誓约</span>
         </div>
+        <div v-if="isLoggedIn" class="nav-item" :class="{active: currentView==='my-oaths'}" @click="currentView='my-oaths'">
+          <span class="n-ic">📜</span><span class="n-txt">我的</span>
+        </div>
+        <div v-if="isLoggedIn" class="nav-item" :class="{active: currentView==='feedback'}" @click="currentView='feedback'">
+          <span class="n-ic">✉️</span><span class="n-txt">信箱</span>
+        </div>
       </div>
       <div class="nav-user">
         <button v-if="!isLoggedIn" @click="openModal('login')" class="btn-login-sm">登</button>
@@ -79,16 +85,24 @@
               </div>
 
               <transition-group name="t-msg">
-                <div v-for="msg in messages" :key="msg.ID" class="msg-row">
-                  <div class="msg-av"><img :src="msg.is_ai_reply?dragonAv:(msg.user?.avatar||defAv)"></div>
-                  <div class="msg-body">
-                    <div class="msg-meta">
-                      <span class="msg-name" :class="msg.is_ai_reply?'name-dragon':''">{{ msg.is_ai_reply?'龙屿之主':(msg.user?.username||'游侠') }}</span>
-                      <span v-if="!msg.is_ai_reply" class="itag" :class="msg.ai_interest?'itag-fire':'itag-void'">{{ msg.ai_interest?'🔥 青睐':'🌪 不屑' }}</span>
-                      <span class="msg-time">{{ fmtTime(msg.CreatedAt) }}</span>
+                <div v-for="msg in messages" :key="msg.ID" class="msg-row" :class="{'msg-recalled': msg.is_recalled}">
+                  <template v-if="msg.is_recalled">
+                    <div class="recall-note">✦ {{ msg.user?.username || '游侠' }} 撤回了一条消息</div>
+                  </template>
+                  <template v-else>
+                    <div class="msg-av"><img :src="msg.is_ai_reply?dragonAv:(msg.user?.avatar||defAv)"></div>
+                    <div class="msg-body">
+                      <div class="msg-meta">
+                        <span class="msg-name" :class="msg.is_ai_reply?'name-dragon':''">{{ msg.is_ai_reply?'龙屿之主':(msg.user?.username||'游侠') }}</span>
+                        <span v-if="!msg.is_ai_reply" class="itag" :class="msg.ai_interest?'itag-fire':'itag-void'">{{ msg.ai_interest?'🔥 青睐':'🌪 不屑' }}</span>
+                        <span class="msg-time">{{ fmtTime(msg.CreatedAt) }}</span>
+                      </div>
+                      <div class="bubble" :class="msg.is_ai_reply?'b-dragon':'b-user'">
+                        {{ msg.content }}
+                        <button v-if="isLoggedIn && msg.user_id === user.ID" class="btn-del" @click="delMsg(msg.ID)">撤回</button>
+                      </div>
                     </div>
-                    <div class="bubble" :class="msg.is_ai_reply?'b-dragon':'b-user'">{{ msg.content }}</div>
-                  </div>
+                  </template>
                 </div>
               </transition-group>
             </div>
@@ -109,6 +123,60 @@
               </template>
             </div>
           </section>
+        </div>
+        <!-- 视图：我的誓言 -->
+        <div v-else-if="currentView==='my-oaths'" class="view-my-oaths layout" key="my-oaths">
+          <section class="chat-area">
+            <div class="msg-list">
+              <div class="my-oaths-header">
+                <h2>我的历史誓言</h2>
+                <span class="total-txt">共 {{ myOathsTotal }} 条</span>
+              </div>
+              <div v-if="myOaths.length===0" class="empty-tip">尚未留下任何誓言</div>
+              <transition-group name="t-msg">
+                <div v-for="msg in myOaths" :key="msg.ID" class="msg-row" :class="{'msg-recalled': msg.is_recalled}">
+                   <div v-if="msg.is_recalled" class="recall-note">✦ 你撤回了一条消息 ({{ fmtDate(msg.CreatedAt) }})</div>
+                   <div v-else class="msg-body my-msg-body">
+                    <div class="msg-meta">
+                      <span class="msg-time">{{ fmtDate(msg.CreatedAt) }}</span>
+                    </div>
+                    <div class="bubble b-user">
+                      {{ msg.content }}
+                      <button class="btn-del" @click="delMyMsg(msg.ID)">撤回</button>
+                    </div>
+                  </div>
+                </div>
+              </transition-group>
+              <div class="pagination" v-if="myOathsTotal > myOathsLimit">
+                <button :disabled="myOathsPage===1" @click="changeMyOathsPage(myOathsPage-1)">←</button>
+                <span>{{ myOathsPage }} / {{ Math.ceil(myOathsTotal/myOathsLimit) }}</span>
+                <button :disabled="myOathsPage >= Math.ceil(myOathsTotal/myOathsLimit)" @click="changeMyOathsPage(myOathsPage+1)">→</button>
+              </div>
+              
+              <div v-if="myFeedbacks.length > 0" class="my-feedback-list">
+                <div class="my-msg-header">📫 匿名信箱回响</div>
+                <div v-for="fb in myFeedbacks" :key="fb.ID" class="fb-item">
+                  <div class="fb-content">“{{ fb.content }}”</div>
+                  <div class="fb-meta">投递于 {{ fmtDate(fb.CreatedAt) }}</div>
+                  <div v-if="fb.is_replied" class="fb-reply">
+                    <span class="reply-tag">主的回响:</span> {{ fb.reply_content }}
+                  </div>
+                  <div v-else class="fb-wait">等待龙语回响...</div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+        <!-- 视图：匿名信箱 -->
+        <div v-else-if="currentView==='feedback'" class="view-feedback" key="feedback">
+          <div class="my-msg-header">✉️ 投递匿名信</div>
+          <div class="fb-form">
+            <p class="fb-tip">无论是功能构想、存世疑虑，还是对龙屿的期许，皆可在此投递。龙主将亲阅每一封信笺。</p>
+            <textarea v-model="fbContent" placeholder="在此写下您的信笺..." maxlength="500"></textarea>
+            <div class="fb-actions">
+              <button class="btn-send-fb" :disabled="!fbContent.trim()" @click="submitFB">投递信笺</button>
+            </div>
+          </div>
         </div>
       </transition>
     </main>
@@ -159,7 +227,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, reactive } from 'vue';
+import { ref, onMounted, nextTick, reactive, watch } from 'vue';
 import axios from 'axios';
 
 axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL;
@@ -171,7 +239,6 @@ const displayedQuote = ref('');
 const showExplain = ref(false);
 const showEnter = ref(false);
 
-// 思索中轮播文案
 const thinkingTexts = [
   '龙主正在云端思志...',
   '扭动尾巴，凝谈道的精华...',
@@ -207,7 +274,6 @@ const fetchQuote = async () => {
     quote.value = { quote: '山知道我，我知道你，就已足够。', explain: '翻译成大白话：不需要全世界都懂我，你懂就够了。', type: 'wisdom' };
   }
   clearInterval(thinkingTimer);
-  // 思索状态淡出，再开始打字
   isThinking.value = false;
   setTimeout(() => {
     runTypewriter(quote.value.quote, () => {
@@ -217,13 +283,13 @@ const fetchQuote = async () => {
   }, 400);
 };
 
-
 axios.interceptors.request.use(c => { const t = localStorage.getItem('token'); if(t) c.headers.Authorization=`Bearer ${t}`; return c; });
 
 const defAv = `${import.meta.env.VITE_UPLOAD_BASE_URL}/1778432333617872906.jpg`;
 const dragonAv = `${import.meta.env.VITE_UPLOAD_BASE_URL}/1778433348838960808.jpg`;
 
 const messages = ref([]); const archives = ref([]); const newMsg = ref('');
+const fbContent = ref(''); const myFeedbacks = ref([]);
 const isChecking = ref(false); const isLoggedIn = ref(!!localStorage.getItem('token'));
 const user = ref(JSON.parse(localStorage.getItem('user')||'{}')); 
 const postCooldown = ref(0); const msgBox = ref(null); const moderationStatus = ref('');
@@ -232,6 +298,11 @@ const oldestID = ref(0);
 const smsCooldown = ref(0);
 const authForm = reactive({username:'',password:'',phone:'',code:''});
 const editForm = reactive({username:'',avatar:''});
+const myOaths = ref([]);
+const myOathsTotal = ref(0);
+const myOathsPage = ref(1);
+const myOathsLimit = 10;
+const fmtDate = t => new Date(t).toLocaleString('zh-CN');
 
 const fmtTime = t => new Date(t).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
 const openModal = (m) => { if(m==='profile'){editForm.username=user.value.username;editForm.avatar=user.value.avatar||'';} authForm.username='';authForm.password='';authForm.phone='';authForm.code=''; modal.value=m; };
@@ -254,6 +325,16 @@ const send = async () => {
   } catch(e) {
     moderationStatus.value='fail';
     setTimeout(()=>{ isChecking.value=false; moderationStatus.value=''; newMsg.value=content; alert(e.response?.data?.error||'被拦截'); },1500);
+  }
+};
+const delMsg = async (id) => {
+  if(!confirm('确定要撤回这条誓言吗？')) return;
+  try {
+    await axios.delete(`/chat/${id}`);
+    const m = messages.value.find(x=>x.ID===id);
+    if(m) m.is_recalled = true;
+  } catch(e) {
+    alert(e.response?.data?.error || '撤回失败');
   }
 };
 
@@ -284,9 +365,63 @@ const loadMore = async () => {
 
 const scrollBottom = () => { if(msgBox.value) msgBox.value.scrollTop=msgBox.value.scrollHeight; };
 const fetchArchives = async () => { try { const r=await axios.get('/archives'); archives.value=r.data.data; } catch{}};
-const initWS = () => { const wsUrl = import.meta.env.VITE_WS_URL; const ws=new WebSocket(wsUrl); ws.onmessage=(e)=>{ const m=JSON.parse(e.data); if(!messages.value.find(x=>x.ID===m.ID)){ messages.value.push(m); nextTick(scrollBottom); }}; ws.onclose=()=>setTimeout(initWS,3000); };
+const initWS = () => { 
+  const wsUrl = import.meta.env.VITE_WS_URL; 
+  const ws=new WebSocket(wsUrl); 
+  ws.onmessage=(e)=>{ 
+    const m=JSON.parse(e.data); 
+    const idx = messages.value.findIndex(x=>x.ID===m.ID);
+    if(idx !== -1){
+      messages.value[idx] = m;
+    } else {
+      messages.value.push(m); 
+      nextTick(scrollBottom); 
+    }
+  }; 
+  ws.onclose=()=>setTimeout(initWS,3000); 
+};
 
+const fetchMyOaths = async () => {
+  try {
+    const r = await axios.get(`/chat/my?page=${myOathsPage.value}&limit=${myOathsLimit}`);
+    myOaths.value = r.data.data;
+    myOathsTotal.value = r.data.total;
+  } catch(e) { console.error(e); }
+};
+const fetchMyFeedbacks = async () => {
+  try {
+    const r = await axios.get('/feedback/my');
+    myFeedbacks.value = r.data.data;
+  } catch {}
+};
+const submitFB = async () => {
+  try {
+    await axios.post('/feedback/submit', { content: fbContent.value });
+    alert('信笺已投递');
+    fbContent.value = '';
+    currentView.value = 'my-oaths';
+    fetchMyFeedbacks();
+  } catch (e) {
+    alert(e.response?.data?.error || '投递失败');
+  }
+};
+const changeMyOathsPage = (p) => { myOathsPage.value = p; fetchMyOaths(); };
+const delMyMsg = async (id) => {
+  if(!confirm('确定要抹除这条誓言吗？')) return;
+  try {
+    await axios.delete(`/chat/${id}`);
+    myOaths.value = myOaths.value.filter(m => m.ID !== id);
+    myOathsTotal.value--;
+  } catch(e) { alert(e.response?.data?.error || '抹除失败'); }
+};
 onMounted(()=>{ fetchQuote(); fetchMessages(); fetchArchives(); initWS(); });
+
+watch(currentView, (v) => {
+  if(v==='my-oaths') {
+    fetchMyOaths();
+    fetchMyFeedbacks();
+  }
+});
 </script>
 
 <style scoped>
@@ -404,6 +539,44 @@ onMounted(()=>{ fetchQuote(); fetchMessages(); fetchArchives(); initWS(); });
 .bubble{padding:12px 16px;border-radius:4px 14px 14px 14px;line-height:1.75;font-size:.9rem;max-width:600px;}
 .b-user{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);color:#ccc;}
 .b-dragon{background:rgba(192,57,43,.06);border:1px solid rgba(192,57,43,.15);color:#e5e5e5;border-radius:14px;}
+.bubble{position:relative;}
+.btn-del{position:absolute;right:10px;bottom:-20px;background:none;border:none;color:#444;font-size:.65rem;cursor:pointer;opacity:0;transition:.2s;padding:4px;}
+.bubble:hover .btn-del{opacity:1;bottom:6px;color:#c0392b;}
+
+/* 我的誓言 */
+.view-my-oaths { background: #050505; }
+.my-oaths-header { display: flex; align-items: baseline; gap: 16px; margin-bottom: 32px; border-bottom: 1px solid rgba(192,57,43,0.2); padding-bottom: 12px; }
+.my-oaths-header h2 { font-family: 'Noto Serif SC', serif; font-size: 1.5rem; color: #f0f0f0; letter-spacing: 2px; }
+.total-txt { font-size: .8rem; color: #444; }
+.my-msg-body { width: 100%; }
+.pagination { display: flex; align-items: center; justify-content: center; gap: 20px; margin-top: 40px; }
+.pagination button { background: none; border: 1px solid #333; color: #888; width: 32px; height: 32px; border-radius: 6px; cursor: pointer; transition: .2s; }
+.pagination button:hover:not(:disabled) { border-color: #c0392b; color: #c0392b; box-shadow: 0 0 12px rgba(192,57,43,0.3); }
+.pagination button:disabled { opacity: 0.2; cursor: not-allowed; }
+.empty-tip { text-align: center; color: #333; padding: 100px 0; letter-spacing: 4px; }
+
+/* 撤回样式 */
+.msg-recalled { justify-content: center; margin: 16px 0; }
+.recall-note { font-size: .75rem; color: #444; background: rgba(255,255,255,0.02); padding: 4px 16px; border-radius: 20px; letter-spacing: 1px; }
+
+/* 匿名信箱 */
+.view-feedback { padding: 40px; max-width: 800px; margin: 0 auto; width: 100%; }
+.fb-form { margin-top: 30px; background: rgba(255,255,255,0.02); padding: 30px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.05); }
+.fb-tip { color: #666; font-size: .9rem; margin-bottom: 20px; line-height: 1.6; }
+.fb-form textarea { width: 100%; height: 200px; background: rgba(0,0,0,0.2); border: 1px solid #333; border-radius: 12px; color: #ccc; padding: 16px; font-size: 1rem; resize: none; outline: none; transition: .3s; }
+.fb-form textarea:focus { border-color: #c0392b; box-shadow: 0 0 15px rgba(192,57,43,0.1); }
+.fb-actions { margin-top: 20px; text-align: right; }
+.btn-send-fb { background: #c0392b; color: white; border: none; padding: 12px 32px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: .3s; }
+.btn-send-fb:hover:not(:disabled) { background: #e74c3c; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(192,57,43,0.3); }
+.btn-send-fb:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.my-feedback-list { margin-top: 60px; padding-top: 40px; border-top: 1px dashed rgba(255,255,255,0.1); }
+.fb-item { background: rgba(255,255,255,0.01); padding: 20px; border-radius: 14px; margin-bottom: 20px; border-left: 3px solid #333; }
+.fb-content { color: #888; font-style: italic; margin-bottom: 10px; }
+.fb-meta { font-size: .75rem; color: #444; margin-bottom: 12px; }
+.fb-reply { background: rgba(192,57,43,0.05); padding: 12px 16px; border-radius: 8px; color: #aaa; font-size: .9rem; border: 1px solid rgba(192,57,43,0.1); }
+.reply-tag { color: #c0392b; font-weight: bold; margin-right: 8px; }
+.fb-wait { font-size: .8rem; color: #444; }
 
 /* 输入区 */
 .input-bar{flex-shrink:0;padding:16px 48px 24px;border-top:1px solid rgba(255,255,255,0.05);}
