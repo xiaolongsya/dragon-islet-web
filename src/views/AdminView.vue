@@ -2,7 +2,13 @@
   <div class="view-admin layout">
     <section class="chat-area">
       <div class="msg-list">
-        <div class="my-msg-header">🛡️ 龙屿守护者 · 鳞笺审阅</div>
+        <div class="admin-header">
+          <div class="my-msg-header">🛡️ 龙屿守护者 · 鳞笺审阅</div>
+          <button class="btn-p btn-glow" :disabled="isGenerating" @click="$emit('manual-generate')">
+            <span v-if="isGenerating" class="spin-sm">🌀</span>
+            {{ isGenerating ? '正在追溯时空...' : '✦ 手动降下今日史诗' }}
+          </button>
+        </div>
         <div v-if="items.length===0" class="empty-tip">暂无待审阅的鳞笺</div>
         <div v-for="fb in items" :key="fb.ID" class="admin-fb-card">
           <div class="fb-card-top">
@@ -33,31 +39,38 @@ defineProps({
   items: Array,
   total: Number,
   page: Number,
-  limit: Number
+  limit: Number,
+  isGenerating: Boolean
 });
-defineEmits(['reply', 'change-page']);
+defineEmits(['reply', 'change-page', 'manual-generate']);
 
 const fmtDate = t => new Date(t).toLocaleString('zh-CN');
 </script>
 
 <style scoped>
-.layout{flex:1;display:flex;overflow:hidden;}
-.chat-area{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
-.msg-list{flex:1;overflow-y:auto;padding:24px 48px;}
-.my-msg-header { font-size: 1.2rem; font-weight: 600; color: #eee; margin-bottom: 20px; border-left: 4px solid #c0392b; padding-left: 12px; letter-spacing: 2px; }
+.layout{flex:1;display:flex;overflow:hidden;background: transparent;}
+.chat-area{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;background: linear-gradient(to right, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.6) 50%, rgba(0,0,0,0.85) 100%); transform: translateZ(0); will-change: transform;}
+.msg-list{flex:1;overflow-y:auto;padding:40px 60px;background: transparent;}
+.admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
+.my-msg-header { font-size: 1.5rem; font-weight: 600; color: #eee; border-left: 4px solid #c0392b; padding-left: 16px; font-family: 'Noto Serif SC', serif; letter-spacing: 4px; }
+.btn-glow { box-shadow: 0 0 15px rgba(192,57,43,0.2); animation: pulse-btn 3s infinite; display: flex; align-items: center; gap: 8px; }
+.btn-glow:disabled { opacity: 0.7; cursor: wait; animation: none; }
+.spin-sm { display: inline-block; animation: spin 1s linear infinite; font-size: 1rem; }
+@keyframes pulse-btn { 0%,100%{box-shadow:0 0 15px rgba(192,57,43,0.2)} 50%{box-shadow:0 0 25px rgba(192,57,43,0.5)} }
+@keyframes spin { to { transform: rotate(360deg); } }
 .empty-tip { text-align: center; color: #333; padding: 100px 0; letter-spacing: 4px; }
 .pagination { display: flex; align-items: center; justify-content: center; gap: 20px; margin-top: 40px; }
 .pagination button { background: none; border: 1px solid #333; color: #888; width: 32px; height: 32px; border-radius: 6px; cursor: pointer; transition: .2s; }
 .pagination button:hover:not(:disabled) { border-color: #c0392b; color: #c0392b; box-shadow: 0 0 12px rgba(192,57,43,0.3); }
 .pagination button:disabled { opacity: 0.2; cursor: not-allowed; }
 
-.admin-fb-card { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 24px; margin-bottom: 24px; }
-.fb-card-top { display: flex; justify-content: space-between; font-size: .75rem; color: #444; margin-bottom: 12px; }
-.fb-card-content { color: #ccc; font-size: 1rem; line-height: 1.6; margin-bottom: 16px; }
-.fb-reply-form textarea { width: 100%; height: 80px; background: rgba(0,0,0,0.3); border: 1px solid #333; border-radius: 8px; color: #aaa; padding: 12px; font-size: .9rem; resize: none; margin-bottom: 10px; outline: none; }
-.fb-reply-form textarea:focus { border-color: #c0392b; }
-.fb-replied-box { background: rgba(192,57,43,0.05); padding: 12px; border-radius: 8px; font-size: .9rem; color: #888; border: 1px solid rgba(192,57,43,0.1); }
-.reply-tag { color: #c0392b; font-weight: bold; margin-right: 8px; }
+.admin-fb-card { background: rgba(20,20,20,0.8); border: 1px solid rgba(255,255,255,0.06); border-radius: 20px; padding: 32px; margin-bottom: 32px; transform: translateZ(0); will-change: transform; box-shadow: 0 10px 30px rgba(0,0,0,0.4); }
+.fb-card-top { display: flex; justify-content: space-between; font-size: .85rem; color: #555; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.04); padding-bottom: 12px; }
+.fb-card-content { color: #f0f0f0; font-size: 1.1rem; line-height: 1.8; margin-bottom: 24px; font-style: italic; }
+.fb-reply-form textarea { width: 100%; height: 100px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; color: #eee; padding: 16px; font-size: 1rem; resize: none; margin-bottom: 16px; outline: none; transition: 0.3s; }
+.fb-reply-form textarea:focus { border-color: rgba(192,57,43,0.6); box-shadow: 0 0 15px rgba(192,57,43,0.1); }
+.fb-replied-box { background: rgba(192,57,43,0.08); padding: 20px; border-radius: 12px; font-size: 1rem; color: #aaa; border: 1px solid rgba(192,57,43,0.2); line-height: 1.6; }
+.reply-tag { color: #ff4d4d; font-weight: bold; margin-right: 12px; }
 .btn-p { background: #c0392b; color: #fff; border: none; border-radius: 10px; padding: 10px 24px; font-weight: bold; cursor: pointer; transition: .2s; }
 .btn-p:hover { background: #e74c3c; }
 .btn-sm { padding: 6px 16px; font-size: .8rem; }

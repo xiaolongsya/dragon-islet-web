@@ -9,10 +9,17 @@
             <input type="file" hidden @change="$emit('upload-avatar', $event)" accept="image/*">
           </label>
           <div class="pf-name">{{ user.username }}</div>
-          <div class="pf-sub">游侠 · 龙屿契约者</div>
+          <div class="pf-sub">{{ user.title || '游侠 · 龙屿契约者' }}</div>
         </div>
         <div class="m-div"></div>
-        <div class="form-g"><label class="f-lbl">改号</label><input class="f-inp" v-model="editForm.username" placeholder="新名号"></div>
+        <div class="form-g">
+          <label class="f-lbl">易名</label>
+          <input class="f-inp" v-model="editForm.username" placeholder="新的名号...">
+        </div>
+        <div class="form-g">
+          <label class="f-lbl">游侠宣言</label>
+          <textarea class="f-inp f-txt" v-model="editForm.motto" placeholder="留下一段你的现世宣言..."></textarea>
+        </div>
         <button class="btn-p f-btn" @click="$emit('submit')">重塑契约</button>
         <button class="btn-ghost f-btn mt-s" @click="$emit('logout')">归隐山林 · 登出</button>
       </div>
@@ -44,6 +51,7 @@ defineEmits(['close', 'submit', 'logout', 'upload-avatar']);
 .f-lbl { display: block; font-size: .75rem; color: #444; margin-bottom: 8px; letter-spacing: 2px; }
 .f-inp { width: 100%; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 12px 16px; color: #fff; outline: none; transition: .2s; }
 .f-inp:focus { border-color: #c0392b; background: rgba(192,57,43,0.05); }
+.f-txt { height: 100px; resize: none; font-family: inherit; line-height: 1.6; }
 .btn-p { width: 100%; background: #c0392b; color: #fff; border: none; border-radius: 10px; padding: 14px; font-weight: bold; cursor: pointer; transition: .2s; margin-top: 10px; }
 .btn-p:hover { background: #e74c3c; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(192,57,43,0.3); }
 .btn-ghost { background: none; border: 1px solid #333; color: #666; width: 100%; padding: 12px; border-radius: 10px; cursor: pointer; transition: .2s; font-size: .85rem; }
