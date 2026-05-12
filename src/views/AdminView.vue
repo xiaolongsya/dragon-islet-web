@@ -3,17 +3,19 @@
     <section class="chat-area">
       <div class="msg-list">
         <div class="admin-header">
-          <div class="my-msg-header">🛡️ 龙屿守护者 · 鳞笺审阅</div>
+          <div class="admin-title-wrap">
+            <div class="my-msg-header">🛡️ 龙屿守护者 · 鳞笺审阅</div>
+          </div>
           <button class="btn-p btn-glow" :disabled="isGenerating" @click="$emit('manual-generate')">
             <span v-if="isGenerating" class="spin-sm">🌀</span>
             {{ isGenerating ? '正在追溯时空...' : '✦ 手动降下今日史诗' }}
           </button>
         </div>
         <div v-if="items.length===0" class="empty-tip">暂无待审阅的鳞笺</div>
-        <div v-for="fb in items" :key="fb.ID" class="admin-fb-card">
+        <div v-for="fb in items" :key="fb.id" class="admin-fb-card">
           <div class="fb-card-top">
             <span class="fb-user-id">游侠 ID: {{ fb.user_id }}</span>
-            <span class="fb-time">{{ fmtDate(fb.CreatedAt) }}</span>
+            <span class="fb-time">{{ fmtDate(fb.created_at) }}</span>
           </div>
           <div class="fb-card-content">“{{ fb.content }}”</div>
           <div v-if="fb.is_replied" class="fb-replied-box">
@@ -52,6 +54,8 @@ const fmtDate = t => new Date(t).toLocaleString('zh-CN');
 .chat-area{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;background: linear-gradient(to right, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.6) 50%, rgba(0,0,0,0.85) 100%); transform: translateZ(0); will-change: transform;}
 .msg-list{flex:1;overflow-y:auto;padding:40px 60px;background: transparent;}
 .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
+.admin-title-wrap { display: flex; align-items: center; gap: 16px; }
+.admin-logo { width: 44px; height: 44px; border-radius: 12px; border: 1px solid rgba(192,57,43,0.3); }
 .my-msg-header { font-size: 1.5rem; font-weight: 600; color: #eee; border-left: 4px solid #c0392b; padding-left: 16px; font-family: 'Noto Serif SC', serif; letter-spacing: 4px; }
 .btn-glow { box-shadow: 0 0 15px rgba(192,57,43,0.2); animation: pulse-btn 3s infinite; display: flex; align-items: center; gap: 8px; }
 .btn-glow:disabled { opacity: 0.7; cursor: wait; animation: none; }

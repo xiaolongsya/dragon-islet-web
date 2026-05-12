@@ -34,7 +34,7 @@ defineEmits(['close', 'submit', 'switch', 'send-sms']);
 
 <style scoped>
 .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 1000; display: flex; align-items: center; justify-content: center; }
-.modal-card { width: 400px; background: #0d0d0d; border: 1px solid rgba(255,255,255,0.08); border-radius: 24px; padding: 40px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+.modal-card { width: 90%; max-width: 400px; background: #0d0d0d; border: 1px solid rgba(255,255,255,0.08); border-radius: 24px; padding: 40px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
 .auth-title { font-family: 'Noto Serif SC', serif; font-size: 1.8rem; color: #f0f0f0; text-align: center; margin-bottom: 24px; letter-spacing: 4px; }
 .auth-div { width: 40px; height: 3px; background: #c0392b; margin: 0 auto 32px; border-radius: 2px; }
 .form-g { margin-bottom: 20px; }

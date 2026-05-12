@@ -34,12 +34,17 @@
         <!-- 架构总览浮层 -->
         <transition name="t-modal">
           <div v-if="manifesto" class="manifesto-overlay" @click.self="$emit('close-manifesto')">
-            <div class="manifesto-card">
+            <div class="manifesto-card glass-card pop">
               <div class="mf-head">
-                <h3>铸龙宣言 · 技术总览</h3>
+                <div class="mf-title-wrap">
+                  <span class="mf-icon">✦</span>
+                  <h3>铸龙宣言 · 技术总览</h3>
+                </div>
                 <button class="btn-close" @click="$emit('close-manifesto')">×</button>
               </div>
-              <pre class="mf-body">{{ manifesto }}</pre>
+              <div class="mf-body-wrap">
+                <div class="mf-body markdown-body" v-html="parsedManifesto"></div>
+              </div>
             </div>
           </div>
         </transition>
@@ -51,7 +56,7 @@
           </div>
           
           <transition-group name="t-arc">
-            <div v-for="arc in archives" :key="arc.ID" class="archive-card" :class="activeTab===1?'card-tech':'card-daily'">
+            <div v-for="arc in archives" :key="arc.id" class="archive-card" :class="activeTab===1?'card-tech':'card-daily'">
               <div class="arc-header">
                 <div class="arc-title-group">
                   <span v-if="activeTab===1" class="tech-tag">TECH</span>
@@ -59,7 +64,7 @@
                 </div>
                 <span class="arc-date">{{ arc.date }}</span>
               </div>
-              <div class="arc-content" v-html="arc.content"></div>
+              <div class="arc-content markdown-body" v-html="parseMd(arc.content)"></div>
             </div>
           </transition-group>
         </div>
@@ -70,7 +75,8 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue';
+import { reactive, ref, computed } from 'vue';
+import { marked } from 'marked';
 
 const props = defineProps({
   archives: Array,
@@ -86,6 +92,17 @@ const postForm = reactive({
   title: '',
   content: '',
   type: 1
+});
+
+// 解析 Markdown
+const parseMd = (content) => {
+  if (!content) return '';
+  return marked.parse(content);
+};
+
+// 专门处理架构总览的解析
+const parsedManifesto = computed(() => {
+  return props.manifesto ? marked.parse(props.manifesto) : '';
 });
 
 const handleAnalyze = async () => {
@@ -144,8 +161,22 @@ const submitPost = () => {
 .btn-p:disabled { opacity: 0.3; }
 
 /* Archive Cards */
-.archive-card { background: rgba(15,15,15,0.8); border: 1px solid rgba(255,255,255,0.06); border-radius: 20px; padding: 40px; margin-bottom: 40px; transition: .4s; transform: translateZ(0); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-.archive-card:hover { border-color: rgba(192,57,43,0.4); transform: translateY(-4px); }
+.archive-card { 
+  background: rgba(15,15,15,0.8); 
+  border: 1px solid rgba(255,255,255,0.06); 
+  border-radius: 24px; 
+  padding: 40px; 
+  margin-bottom: 40px; 
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1); 
+  transform: translateZ(0); 
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
+  will-change: transform, opacity;
+}
+.archive-card:hover { 
+  border-color: rgba(192,57,43,0.6); 
+  transform: translateY(-8px) scale(1.01); 
+  box-shadow: 0 20px 40px rgba(0,0,0,0.8), 0 0 20px rgba(192,57,43,0.1);
+}
 
 /* Daily Style */
 .card-daily { border-left: 1px solid rgba(192,57,43,0.2); }
@@ -163,23 +194,82 @@ const submitPost = () => {
 .empty-tip { text-align: center; color: #222; padding: 100px 0; letter-spacing: 4px; font-size: 1.1rem; }
 
 /* Transitions */
-.t-arc-enter-active { transition: all 0.6s ease; }
-.t-arc-enter-from { opacity: 0; transform: translateX(30px); }
+.t-arc-enter-active { transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+.t-arc-enter-from { opacity: 0; transform: translateY(40px) rotateX(-5deg); }
+.t-arc-move { transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
 
 .pop { animation: pop-in 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
 @keyframes pop-in { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
 
 /* Manifesto Modal */
-.manifesto-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(15px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 40px; }
-.manifesto-card { width: 100%; max-width: 900px; height: 100%; max-height: 80vh; background: #080808; border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 30px 60px rgba(0,0,0,0.8); }
-.mf-head { padding: 24px 32px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; }
-.mf-head h3 { font-family: 'Noto Serif SC', serif; color: #fff; font-size: 1.2rem; letter-spacing: 2px; }
-.btn-close { background: none; border: none; color: #444; font-size: 2rem; cursor: pointer; transition: .2s; }
-.btn-close:hover { color: #c0392b; }
-.mf-body { flex: 1; overflow-y: auto; padding: 32px; font-family: 'Consolas', 'Monaco', monospace; color: #aaa; font-size: 0.95rem; line-height: 1.8; white-space: pre-wrap; background: rgba(255,255,255,0.01); }
-.mf-body::-webkit-scrollbar { width: 4px; }
-.mf-body::-webkit-scrollbar-thumb { background: #1a1a1a; }
+.manifesto-overlay { 
+  position: fixed; inset: 0; background: rgba(0,0,0,0.88); 
+  backdrop-filter: blur(40px); z-index: 1000; 
+  display: flex; align-items: center; justify-content: center; padding: 40px; 
+}
+.manifesto-card { 
+  width: 100%; max-width: 1000px; height: 100%; max-height: 85vh; 
+  background: rgba(10,10,10,0.9); border: 1px solid rgba(255,255,255,0.08); 
+  border-radius: 32px; display: flex; flex-direction: column; overflow: hidden; 
+  box-shadow: 0 60px 120px rgba(0,0,0,1);
+}
+.mf-head { padding: 32px 48px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; }
+.mf-title-wrap { display: flex; align-items: center; gap: 16px; }
+.mf-icon { color: #c0392b; font-size: 1.2rem; filter: drop-shadow(0 0 8px #c0392b); }
+.mf-head h3 { font-family: 'Noto Serif SC', serif; color: #fff; font-size: 1.4rem; letter-spacing: 4px; margin: 0; }
+.btn-close { background: none; border: none; color: #444; font-size: 2.2rem; cursor: pointer; transition: .4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+.btn-close:hover { color: #c0392b; transform: rotate(90deg) scale(1.2); }
+.mf-body-wrap { flex: 1; overflow-y: auto; padding: 48px; scroll-behavior: smooth; }
+.mf-body { background: transparent; }
+.mf-body-wrap::-webkit-scrollbar { width: 4px; }
+.mf-body-wrap::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 10px; }
 
-.t-modal-enter-active, .t-modal-leave-active { transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-.t-modal-enter-from, .t-modal-leave-to { opacity: 0; transform: scale(0.9) translateY(20px); }
+/* Markdown Typography */
+.markdown-body :deep(h1), .markdown-body :deep(h2), .markdown-body :deep(h3) { 
+  font-family: 'Noto Serif SC', serif; 
+  color: #fff; 
+  margin: 24px 0 16px; 
+  letter-spacing: 1px;
+}
+.markdown-body :deep(h1) { font-size: 1.8rem; border-bottom: 1px solid rgba(192,57,43,0.3); padding-bottom: 10px; }
+.markdown-body :deep(h2) { font-size: 1.4rem; border-left: 4px solid #c0392b; padding-left: 15px; }
+.markdown-body :deep(h3) { font-size: 1.1rem; color: #c0392b; }
+
+.markdown-body :deep(p) { margin-bottom: 16px; line-height: 1.8; color: #bbb; }
+.markdown-body :deep(strong) { color: #fff; font-weight: 700; }
+.markdown-body :deep(ul), .markdown-body :deep(ol) { padding-left: 24px; margin-bottom: 16px; color: #aaa; }
+.markdown-body :deep(li) { margin-bottom: 8px; }
+
+.markdown-body :deep(code) { 
+  background: rgba(192,57,43,0.1); 
+  color: #ff6b6b; 
+  padding: 2px 6px; 
+  border-radius: 4px; 
+  font-family: 'Consolas', monospace;
+  font-size: 0.9em;
+}
+
+.markdown-body :deep(blockquote) {
+  margin: 20px 0;
+  padding: 10px 20px;
+  background: rgba(255,255,255,0.02);
+  border-left: 3px solid #444;
+  font-style: italic;
+  color: #888;
+}
+
+.t-modal-enter-active, .t-modal-leave-active { transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+.t-modal-enter-from, .t-modal-leave-to { opacity: 0; transform: scale(0.96) translateY(30px); }
+/* --- 移动端适配 --- */
+@media (max-width: 768px) {
+  .archives-container { padding: 0 20px; }
+  .admin-post-box { margin: 0 20px 40px; padding: 20px; }
+  .manifesto-overlay { padding: 15px; }
+  .manifesto-card { max-height: 92vh; border-radius: 20px; }
+  .mf-head { padding: 20px; }
+  .mf-head h3 { font-size: 1.1rem; letter-spacing: 2px; }
+  .mf-body-wrap { padding: 24px; }
+  .mf-body { font-size: 0.95rem; }
+  .btn-close { font-size: 1.8rem; }
+}
 </style>

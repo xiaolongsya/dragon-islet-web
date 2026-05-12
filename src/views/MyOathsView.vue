@@ -37,9 +37,9 @@
               
               <div v-if="items.length===0" class="empty-mini">尚未在龙屿留下任何誓约</div>
               <transition-group name="t-msg" tag="div" class="oath-list">
-                <div v-for="msg in items" :key="msg.ID" class="oath-item" :class="{'oath-recalled': msg.is_recalled}">
+                <div v-for="msg in items" :key="msg.id" class="oath-item" :class="{'oath-recalled': msg.is_recalled}">
                   <div class="oath-meta">
-                    <span class="oath-time">{{ fmtDate(msg.CreatedAt) }}</span>
+                    <span class="oath-time">{{ fmtDate(msg.created_at) }}</span>
                     <span class="oath-tag" :class="msg.ai_interest?'tag-fire':'tag-void'">
                       {{ msg.ai_interest?'🔥 主的青睐':'🌪 凡言' }}
                     </span>
@@ -47,7 +47,7 @@
                   <div class="oath-content">
                     <span v-if="msg.is_recalled" class="txt-recalled">已在因果中抹除</span>
                     <span v-else>{{ msg.content }}</span>
-                    <button v-if="!msg.is_recalled" class="btn-del-oath" @click="$emit('del-msg', msg.ID)">✦</button>
+                    <button v-if="!msg.is_recalled" class="btn-del-oath" @click="$emit('del-msg', msg.id)">✦</button>
                   </div>
                 </div>
               </transition-group>
@@ -68,11 +68,11 @@
 
               <div v-if="feedbacks.length===0" class="empty-mini">尚未向龙主投递过信笺</div>
               <div class="fb-journal">
-                <div v-for="fb in feedbacks" :key="fb.ID" class="fb-card">
+                <div v-for="fb in feedbacks" :key="fb.id" class="fb-card">
                   <div class="fb-q-row">
                     <span class="fb-label">问</span>
                     <p class="fb-txt">{{ fb.content }}</p>
-                    <button class="btn-fb-del" @click="$emit('del-fb', fb.ID)">抹除</button>
+                    <button class="btn-fb-del" @click="$emit('del-fb', fb.id)">抹除</button>
                   </div>
                   <div class="fb-a-row">
                     <div v-if="fb.is_replied" class="fb-reply">
@@ -80,7 +80,7 @@
                     </div>
                     <div v-else class="fb-pending">静待云端回响...</div>
                   </div>
-                  <div class="fb-footer">{{ fmtDate(fb.CreatedAt) }}</div>
+                  <div class="fb-footer">{{ fmtDate(fb.created_at) }}</div>
                 </div>
               </div>
             </section>

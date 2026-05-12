@@ -38,7 +38,7 @@ defineEmits(['close', 'submit', 'logout', 'upload-avatar']);
 
 <style scoped>
 .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 1000; display: flex; align-items: center; justify-content: center; }
-.modal-card { width: 400px; background: #0d0d0d; border: 1px solid rgba(255,255,255,0.08); border-radius: 24px; padding: 40px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+.modal-card { width: 90%; max-width: 400px; background: #0d0d0d; border: 1px solid rgba(255,255,255,0.08); border-radius: 24px; padding: 40px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
 .pf-top { display: flex; flex-direction: column; align-items: center; margin-bottom: 24px; }
 .av-lg { width: 100px; height: 100px; border-radius: 30px; overflow: hidden; position: relative; border: 2px solid rgba(192,57,43,0.3); margin-bottom: 16px; }
 .av-lg img { width: 100%; height: 100%; object-fit: cover; }
