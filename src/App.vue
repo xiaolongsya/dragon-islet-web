@@ -1,532 +1,737 @@
 <template>
-  <div class="app" :class="{'is-mobile': isMobile}">
+  <div id="app" :class="{'is-mobile': isMobile}">
+    <div class="dragon-texture"></div>
+    
     <!-- 全局导航 -->
     <GlobalNav 
-      v-model="currentView" 
+      v-model="activeView" 
       :isLoggedIn="isLoggedIn" 
       :user="user" 
       :defAv="defAv"
       :isMobile="isMobile"
-      @open-modal="openModal" 
+      @open-modal="handleOpenModal"
     />
 
-    <main class="main-view">
-      <transition name="t-view" mode="out-in">
-        <HomeView 
-          v-if="currentView==='home'"
-          :isLoggedIn="isLoggedIn"
-          :isThinking="isThinking"
-          :thinkingText="thinkingText"
-          :quote="quote"
-          :displayedQuote="displayedQuote"
-          :showExplain="showExplain"
-          :showEnter="showEnter"
-          :isShaking="isShaking"
-          @enter="currentView='chat'"
-          @show-about="currentView='about'"
-          @get-fortune="fetchFortune"
+    <!-- 主视图区域 -->
+    <main class="main-content">
+      <transition name="fade-view" mode="out-in">
+        <component 
+          :is="currentViewComponent" 
+          v-bind="viewProps"
+          @enter="activeView = 'chat'"
+          @show-about="activeView = 'about'"
+          @get-fortune="handleGetFortune"
+          @send="handleSendMessage"
+          @load-more="handleLoadMore"
+          @del-msg="handleDeleteMessage"
+          @force-reply="handleForceReply"
+          @generate-image="handleGenerateImage"
+          @open-modal="handleOpenModal"
+          @switch-tab="handleSwitchArchiveTab"
+          @post-archive="handlePostArchive"
+          @show-manifesto="showManifesto = true"
+          @close-manifesto="showManifesto = false"
+          @update-manifesto="handleUpdateManifesto"
+          @analyze-tech="handleAnalyzeTech"
+          @submit="handleFeedbackSubmit"
+          @reply="handleAdminReply"
+          @change-page="handlePageChange"
+          @manual-generate="handleManualGenerate"
+          @del-fb="handleDeleteFeedback"
+          @open-profile-modal="showProfileModal = true"
         />
-
-        <ChatView 
-          v-else-if="currentView==='chat'"
-          :messages="messages"
-          :hasMore="hasMore"
-          :loadingMore="loadingMore"
-          :isLoggedIn="isLoggedIn"
-          :user="user"
-          :dragonAv="dragonAv"
-          :defAv="defAv"
-          :isChecking="isChecking"
-          :postCooldown="postCooldown"
-          :isMobile="isMobile"
-          @send="send"
-          @load-more="loadMore"
-          @del-msg="delMsg"
-          @force-reply="forceReply"
-          @generate-image="generateImage"
-          @open-modal="openModal"
-          @set-box-ref="val => msgBox = val"
-        />
-
-        <ArchiveView 
-          v-else-if="currentView==='archives'"
-          :archives="archives"
-          :isAdmin="user.role==='admin'"
-          :activeTab="activeArchiveTab"
-          :manifesto="manifestoContent"
-          @switch-tab="switchArchiveTab"
-          @post-archive="postArchive"
-          @show-manifesto="fetchManifesto"
-          @close-manifesto="manifestoContent=''"
-          @analyze-tech="analyzeTech"
-        />
-
-        <MyOathsView 
-          v-else-if="currentView==='my-oaths'"
-          :items="myOaths"
-          :total="myOathsTotal"
-          :page="myOathsPage"
-          :limit="myOathsLimit"
-          :feedbacks="myFeedbacks"
-          :user="user"
-          @change-page="p => { myOathsPage=p; fetchMyOaths(); }"
-          @del-msg="delMyMsg"
-          @del-fb="delFB"
-          @open-profile-modal="openModal('profile')"
-        />
-
-        <FeedbackView 
-          v-else-if="currentView==='feedback'"
-          @submit="submitFB"
-        />
-
-        <AdminView 
-          v-else-if="currentView==='admin'"
-          :items="adminFeedbacks"
-          :total="adminTotal"
-          :page="adminPage"
-          :limit="adminLimit"
-          @reply="replyFB"
-          @change-page="p => { adminPage=p; fetchAdminFeedbacks(); }"
-          @manual-generate="manualGenerateEpic"
-          :isGenerating="isGeneratingEpic"
-        />
-
-        <RaisingView v-else-if="currentView==='raising'" :isLoggedIn="isLoggedIn" />
-
-        <AboutView v-else-if="currentView==='about'" />
       </transition>
     </main>
 
-    <!-- 弹窗层 -->
-    <div class="modal-layer">
-      <!-- 灵语签文 (Fortune Result) -->
-      <transition name="pop">
-        <div class="fortune-overlay" v-if="fortuneResult" @click="fortuneResult = null">
-          <div class="fortune-card glass-card pop" @click.stop>
-            <div class="f-luck">{{ fortuneResult.luck || fortuneResult.Luck || '平' }}</div>
-            <div class="f-title">{{ fortuneResult.verse || fortuneResult.Verse || '灵力感应' }}</div>
-            <div class="f-div"></div>
-            <div class="f-interpretation">
-              {{ fortuneResult.interpretation || fortuneResult.Interpretation || '神龙在云端低语，请静候灵旨。' }}
-            </div>
-            
-            <div class="f-grid">
-              <div class="f-box suit">
-                <div class="label">宜 · SUIT</div>
-                <div class="items-list">
-                  <div v-for="it in ((fortuneResult.suit || fortuneResult.Suit || '').split(',') || [])" :key="it" class="it-row">
-                    <span v-if="it">✦ {{ it }}</span>
-                  </div>
-                </div>
-              </div>
-              <div class="f-box avoid">
-                <div class="label">忌 · AVOID</div>
-                <div class="items-list">
-                  <div v-for="it in ((fortuneResult.avoid || fortuneResult.Avoid || '').split(',') || [])" :key="it" class="it-row">
-                    <span v-if="it">✦ {{ it }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <button class="btn-close-f" @click="fortuneResult = null">领受灵旨</button>
+    <!-- 求签过场动画 -->
+    <transition name="fade">
+      <div v-if="isFortuneLoading" class="fortune-loading-overlay">
+        <div class="fortune-spirit">
+          <div class="spirit-core"></div>
+          <div class="spirit-ring ring-1"></div>
+          <div class="spirit-ring ring-2"></div>
+          <div class="spirit-ring ring-3"></div>
+          <div class="spirit-text-epic">
+            <span class="spirit-glow-text">正在向龙主祈求灵语...</span>
+            <div class="spirit-sub">因果律正在重组，请静候神谕</div>
           </div>
         </div>
-      </transition>
-
-      <transition name="pop">
-        <AuthModal 
-          v-if="modal==='login' || modal==='register'"
-          :type="modal"
-          :form="authForm"
-          :smsCooldown="smsCooldown"
-          @close="modal=''"
-          @submit="modal==='login'?doLogin():doRegister()"
-          @switch="modal = modal==='login'?'register':'login'"
-          @send-sms="sendSms"
-        />
-      </transition>
-
-      <transition name="pop">
-        <ProfileModal 
-          v-if="modal==='profile'"
-          :user="user"
-          :editForm="editForm"
-          :defAv="defAv"
-          @close="modal=''"
-          @submit="updateProfile"
-          @logout="logout"
-          @upload-avatar="uploadAvatar"
-        />
-      </transition>
-    </div>
-
-    <!-- 审核遮罩 -->
-    <div class="audit-mask" v-if="isChecking">
-      <div class="audit-box pop">
-        <div class="audit-visual" :class="moderationStatus">
-          <div class="spin-ring"></div>
-          <div class="audit-status-icon" v-if="moderationStatus!=='examining'">
-            {{ moderationStatus.startsWith('pass') ? '✓' : '✕' }}
-          </div>
-        </div>
-        <div class="al">{{ auditText }}</div>
       </div>
-    </div>
+    </transition>
+
+    <!-- 登录/注册 弹窗 -->
+    <AuthModal 
+      v-if="authModal" 
+      :type="authModal" 
+      :form="authForm" 
+      :smsCooldown="smsCooldown"
+      @close="authModal = null"
+      @submit="handleAuth"
+      @switch="(newType) => authModal = newType"
+      @send-sms="handleSendSms"
+    />
+
+    <!-- 个人资料编辑 弹窗 -->
+    <ProfileModal 
+      v-if="showProfileModal" 
+      :user="user" 
+      :editForm="profileForm" 
+      :defAv="defAv"
+      @close="showProfileModal = false"
+      @submit="handleUpdateProfile"
+      @logout="handleLogout"
+      @upload-avatar="handleUploadAvatar"
+    />
+
+    <!-- 求签结果 弹窗 -->
+    <FortuneModal 
+      v-if="showFortuneModal" 
+      :fortune="currentFortune"
+      @close="showFortuneModal = false"
+    />
+
+    <!-- 全局提示 (Notification) -->
+    <transition name="t-toast">
+      <div v-if="toast" class="global-toast" :class="toast.type">
+        {{ toast.msg }}
+      </div>
+    </transition>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, reactive, watch, computed, onBeforeUnmount } from 'vue';
+import { ref, reactive, computed, onMounted, watch } from 'vue';
 import axios from 'axios';
 
+// 导入组件
 import GlobalNav from './components/GlobalNav.vue';
 import AuthModal from './components/AuthModal.vue';
 import ProfileModal from './components/ProfileModal.vue';
+import FortuneModal from './components/FortuneModal.vue';
 import HomeView from './views/HomeView.vue';
 import ChatView from './views/ChatView.vue';
-import MyOathsView from './views/MyOathsView.vue';
+import RaisingView from './views/RaisingView.vue';
 import ArchiveView from './views/ArchiveView.vue';
 import FeedbackView from './views/FeedbackView.vue';
 import AdminView from './views/AdminView.vue';
 import AboutView from './views/AboutView.vue';
-import RaisingView from './views/RaisingView.vue';
+import MyOathsView from './views/MyOathsView.vue';
 
-axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL;
-axios.interceptors.request.use(c => { const t = localStorage.getItem('token'); if(t) c.headers.Authorization=`Bearer ${t}`; return c; });
-
-const currentView = ref('home');
-const isThinking = ref(false);
-const quote = ref({ quote: '山重水复疑无路，柳暗花明又一村。', explain: '欢迎来到龙屿遗境。', type: 'wisdom' });
-const displayedQuote = ref('山重水复疑无路，柳暗花明又一村。');
-const showExplain = ref(true);
-const showEnter = ref(true);
-const thinkingTexts = ['龙主正在云端思志...', '扭动尾巴，凝谈道的精华...', '龙鲱翻涌，智慧正在凝聚...', '刚刺一裂云隙，真言将出...'];
-const thinkingText = ref(thinkingTexts[0]);
-let thinkingTimer = null;
-
-const messages = ref([]); const archives = ref([]); const isChecking = ref(false);
-const isLoggedIn = ref(!!localStorage.getItem('token'));
-const user = ref(JSON.parse(localStorage.getItem('user')||'{}')); 
-const postCooldown = ref(0); const msgBox = ref(null); const moderationStatus = ref(''); 
-const auditText = computed(() => {
-  if (moderationStatus.value.startsWith('pass')) return '✦ 龙语审阅：通过 ✦';
-  if (moderationStatus.value === 'fail') return '✦ 龙语审阅：驳回 ✦';
-  return '龙主正在审阅你的誓言...';
+// 配置 Axios
+axios.defaults.baseURL = '/dragon';
+axios.interceptors.request.use(config => {
+  const token = localStorage.getItem('token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
 });
-const modal = ref(''); const hasMore = ref(false); const loadingMore = ref(false);
-const oldestID = ref(0); const smsCooldown = ref(0);
-const isGeneratingEpic = ref(false);
-const authForm = reactive({username:'',password:'',phone:'',code:''});
-const editForm = reactive({username:'',avatar:'',motto:''});
-const myOaths = ref([]); const myOathsTotal = ref(0); const myOathsPage = ref(1); const myOathsLimit = 10;
-const myFeedbacks = ref([]);
-const adminFeedbacks = ref([]); const adminTotal = ref(0); const adminPage = ref(1); const adminLimit = 10;
-const activeArchiveTab = ref(0);
-const manifestoContent = ref('');
+
+// 全局状态
 const isMobile = ref(window.innerWidth <= 768);
-const fortuneResult = ref(null); // 存放求签结果
+const activeView = ref('home');
+const isLoggedIn = ref(false);
+const user = reactive({
+  id: 0, username: '', avatar: '', role: '', title: '', experience: 0, motto: ''
+});
+const defAv = 'https://xiaolongya.cn/uploads/1778432333617872906.jpg';
+const dragonAv = 'https://xiaolongya.cn/uploads/1778649379112733278.jpg';
 
-const defAv = `https://xiaolongya.cn/uploads/1778432333617872906.jpg`;
-const dragonAv = `https://xiaolongya.cn/uploads/1778566530694964727.jpg`;
+// 视图相关状态
+const quote = reactive({ quote: '', explain: '', type: 'normal' });
+const displayedQuote = ref('');
+const showExplain = ref(false);
+const showEnter = ref(false);
+const isThinking = ref(false);
+const isUpdating = ref(false);
+const thinkingText = ref('正在追溯岛屿的回忆...');
 
-const handleResize = () => { isMobile.value = window.innerWidth <= 768; };
-window.addEventListener('resize', handleResize);
+const messages = ref([]);
+const hasMore = ref(false);
+const loadingMore = ref(false);
+const chatPage = ref(1);
+const chatLimit = 20;
+const isChecking = ref(false);
+const postCooldown = ref(0);
 
-const isShaking = ref(false);
-const fetchFortune = async () => {
-  if(!isLoggedIn.value) return alert('请先建立契约（登录）再求取灵语');
-  if(isShaking.value) return;
-  isShaking.value = true;
-  try {
-    await new Promise(r => setTimeout(r, 1500));
-    const r = await axios.get('/user/fortune');
-    if (r.data && r.data.data) {
-      fortuneResult.value = r.data.data;
-    } else if (r.data) {
-      fortuneResult.value = r.data;
-    }
-  } catch(e) {
-    alert(e.response?.data?.error || '今日灵力波动不稳，请稍后再试');
-  } finally {
-    isShaking.value = false;
-  }
+const archives = ref([]);
+const activeArchiveTab = ref(0);
+const manifesto = ref('');
+const showManifesto = ref(false);
+
+const adminFeedbacks = ref([]);
+const adminTotal = ref(0);
+const adminPage = ref(1);
+const isGenerating = ref(false);
+
+const myOaths = ref([]);
+const myOathsTotal = ref(0);
+const myOathsPage = ref(1);
+const myFeedbacks = ref([]);
+const userSummary = reactive({ has_dragon: false, all_tasks_done: false });
+
+// 弹窗状态
+const authModal = ref(null);
+const authForm = reactive({ username: '', password: '', phone: '', code: '' });
+const isAuthing = ref(false);
+const smsCooldown = ref(0);
+const showProfileModal = ref(false);
+const profileForm = reactive({ nickname: '', avatar: '', motto: '' });
+const showFortuneModal = ref(false);
+const isFortuneLoading = ref(false);
+const currentFortune = ref({});
+
+// 提示状态
+const toast = ref(null);
+const showToast = (msg, type = 'info') => {
+  toast.value = { msg, type };
+  setTimeout(() => toast.value = null, 3000);
 };
 
+// 动态组件
+const currentViewComponent = computed(() => {
+  const map = {
+    'home': HomeView,
+    'chat': ChatView,
+    'raising': RaisingView,
+    'archives': ArchiveView,
+    'feedback': FeedbackView,
+    'admin': AdminView,
+    'about': AboutView,
+    'my-oaths': MyOathsView
+  };
+  return map[activeView.value] || HomeView;
+});
+
+// 视图 Props
+const viewProps = computed(() => {
+  if (activeView.value === 'home') {
+    return { quote, displayedQuote: displayedQuote.value, showExplain: showExplain.value, showEnter: showEnter.value, isThinking: isThinking.value, thinkingText: thinkingText.value };
+  }
+  if (activeView.value === 'chat') {
+    return { messages: messages.value, hasMore: hasMore.value, loadingMore: loadingMore.value, isLoggedIn: isLoggedIn.value, user, dragonAv, defAv, isChecking: isChecking.value, postCooldown: postCooldown.value, isMobile: isMobile.value, hasDragon: userSummary.has_dragon, allTasksDone: userSummary.all_tasks_done };
+  }
+  if (activeView.value === 'archives') {
+    return { 
+      archives: archives.value, 
+      isAdmin: user.role === 'admin', 
+      activeTab: activeArchiveTab.value, 
+      manifesto: manifesto.value,
+      showManifesto: showManifesto.value 
+    };
+  }
+  if (activeView.value === 'admin') {
+    return { items: adminFeedbacks.value, total: adminTotal.value, page: adminPage.value, limit: 10, isGenerating: isGenerating.value, isUpdating: isUpdating.value };
+  }
+  if (activeView.value === 'my-oaths') {
+    return { items: myOaths.value, total: myOathsTotal.value, page: myOathsPage.value, limit: 10, feedbacks: myFeedbacks.value, user };
+  }
+  return {};
+});
+
+// 监听视图切换
+watch(activeView, (newView) => {
+  if (newView === 'home') fetchQuote();
+  if (activeView.value === 'chat') {
+    fetchMessages(true);
+    fetchSummary();
+  }
+  if (activeView.value === 'archives') fetchArchives();
+  if (activeView.value === 'admin' && user.role === 'admin') fetchAdminFeedbacks();
+  if (activeView.value === 'my-oaths') fetchMyOaths();
+});
+
+const fetchSummary = async () => {
+  if (!isLoggedIn.value) return;
+  try {
+    const res = await axios.get('/raising/summary');
+    Object.assign(userSummary, res.data);
+  } catch (e) {}
+};
+
+// 逻辑方法
 const fetchQuote = async () => {
-  startThinkingRotation();
-  try { const r = await axios.get('/quote'); quote.value = r.data; } 
-  catch { quote.value = { quote: '山知道我，我知道你，就已足够。', explain: '翻译成大白话：不需要全世界都懂我，你懂就够了。', type: 'wisdom' }; }
-  clearInterval(thinkingTimer); isThinking.value = false;
-  setTimeout(() => { runTypewriter(quote.value.quote, () => { setTimeout(() => { showExplain.value = true; }, 600); setTimeout(() => { showEnter.value = true; }, 1200); }); }, 400);
-};
-
-const openModal = (m) => { if(m==='profile'){editForm.username=user.value.username;editForm.avatar=user.value.avatar||'';editForm.motto=user.value.motto||'';} authForm.username='';authForm.password='';authForm.phone='';authForm.code=''; modal.value=m; };
-
-const doLogin = async () => { try { const r=await axios.post('/auth/login',authForm); localStorage.setItem('token',r.data.token); localStorage.setItem('user',JSON.stringify(r.data.user)); isLoggedIn.value=true; user.value=r.data.user; modal.value=''; } catch(e){ alert(e.response?.data?.error||'登录失败'); }};
-const doRegister = async () => { try { await axios.post('/auth/register',authForm); alert('注册成功'); modal.value='login'; } catch(e){ alert(e.response?.data?.error||'失败'); }};
-const sendSms = async () => { if(!authForm.phone) return alert('请输入手机号'); try { await axios.post('/auth/send-sms',{phone:authForm.phone}); smsCooldown.value=60; const ti=setInterval(()=>{ if(smsCooldown.value>0)smsCooldown.value--; else clearInterval(ti); },1000); } catch(e){ alert(e.response?.data?.error||'发送失败'); }};
-
-const updateProfile = async () => { try { await axios.post('/user/profile',{nickname:editForm.username,avatar:editForm.avatar,motto:editForm.motto}); user.value.username=editForm.username; user.value.motto=editForm.motto; if(editForm.avatar) user.value.avatar=editForm.avatar; localStorage.setItem('user',JSON.stringify(user.value)); modal.value=''; } catch(e){ alert(e.response?.data?.error||'失败'); }};
-const uploadAvatar = async (e) => { const f=e.target.files[0]; if(!f) return; if(f.size>5*1024*1024) return alert('图片不能超过5MB'); const fd=new FormData(); fd.append('file',f); try { const r=await axios.post('/upload',fd); if(r.data.code===0) editForm.avatar=r.data.data.url; else alert(r.data.msg); } catch(err){ alert(err.response?.data?.msg||'上传失败'); }};
-const logout = () => { localStorage.clear(); window.location.reload(); };
-
-const fetchUserInfo = async () => {
-  if(!isLoggedIn.value) return;
+  isThinking.value = true;
   try {
-    const r = await axios.get('/user/profile');
-    user.value = r.data;
-    localStorage.setItem('user', JSON.stringify(user.value));
-  } catch(e) { console.error('同步用户信息失败', e); }
-};
-
-const send = async (content) => {
-  moderationStatus.value='examining'; isChecking.value=true;
-  try {
-    const r=await axios.post('/chat/send',{content});
-    moderationStatus.value=r.data.will_reply?'pass-interested':'pass-ignored';
-    setTimeout(fetchUserInfo, 1000);
-    setTimeout(()=>{ isChecking.value=false; moderationStatus.value=''; },1400);
-    postCooldown.value=60; const ti=setInterval(()=>{ if(postCooldown.value>0)postCooldown.value--; else clearInterval(ti); },1000);
-  } catch(e) {
-    moderationStatus.value='fail';
-    setTimeout(()=>{ isChecking.value=false; moderationStatus.value=''; alert(e.response?.data?.error||'被拦截'); },1500);
+    const res = await axios.get('/quote');
+    let data = res.data;
+    // 如果返回的是字符串（可能包含 Markdown），尝试解析
+    if (typeof data === 'string') {
+      try {
+        const jsonStr = data.replace(/```json|```/g, '').trim();
+        data = JSON.parse(jsonStr);
+      } catch (e) {
+        data = { quote: data, explain: '灵力紊乱，未能解析大白话。' };
+      }
+    }
+    Object.assign(quote, data);
+    animateQuote(quote.quote || quote.content || '');
+  } catch (e) {
+    showToast('无法感应岛屿的呼吸', 'error');
+    animateQuote('山知道我，我知道你，就已足够。');
+  } finally {
+    isThinking.value = false;
   }
 };
 
-const fetchMessages = async () => {
-  const r = await axios.get('/chat/list');
-  // 核心：时间晚的在下面，所以我们要反转 desc 获取的列表
-  messages.value = r.data.data.reverse();
-  hasMore.value = r.data.has_more;
-  if(messages.value.length>0) oldestID.value = messages.value[0].id;
+const animateQuote = (text) => {
+  if (!text) return;
+  displayedQuote.value = '';
+  showExplain.value = false;
+  showEnter.value = false;
+  let i = 0;
+  const timer = setInterval(() => {
+    if (!text[i]) {
+      clearInterval(timer);
+      showExplain.value = true;
+      showEnter.value = true;
+      return;
+    }
+    displayedQuote.value += text[i];
+    i++;
+    if (i >= text.length) {
+      clearInterval(timer);
+      setTimeout(() => {
+        showExplain.value = true;
+        showEnter.value = true;
+      }, 500);
+    }
+  }, 100);
 };
 
-const loadMore = async () => {
-  if(loadingMore.value||!hasMore.value) return;
-  loadingMore.value = true;
+const fetchMessages = async (reset = false) => {
   try {
-    const r = await axios.get(`/chat/list?before_id=${oldestID.value}`);
-    const older = r.data.data.reverse(); // 获取更早的消息，也要反转后放在顶部
-    messages.value = [...older, ...messages.value];
-    hasMore.value = r.data.has_more;
-    if(older.length>0) oldestID.value = older[0].id;
-  } finally { loadingMore.value=false; }
+    let url = '/chat/list';
+    if (!reset && messages.value.length > 0) {
+      const oldestId = messages.value[0].id;
+      url += `?before_id=${oldestId}`;
+    }
+    const res = await axios.get(url);
+    const list = res.data.data || [];
+    if (reset) {
+      messages.value = list.reverse();
+    } else {
+      messages.value = [...list.reverse(), ...messages.value];
+    }
+    hasMore.value = res.data.has_more;
+  } catch (e) {
+    console.error('获取消息失败:', e);
+  }
 };
 
-const fetchArchives = async (type = 0) => {
+const handleSendMessage = async (content, cb) => {
   try {
-    const r = await axios.get(`/archives?type=${type}`);
-    archives.value = r.data.data;
-  } catch(e) { console.error('获取史诗失败', e); }
+    const res = await axios.post('/chat/send', { content });
+    // 后端返回的是 { data: msg, ... }，WS 也会广播，但这里可以先推入以获得即时感
+    if (!ws.value) {
+      messages.value.push(res.data.data);
+    }
+    startCooldown();
+    if (cb) cb(true);
+  } catch (e) {
+    const errMsg = e.response?.data?.error || '镌刻失败';
+    if (cb) cb(false, errMsg);
+  }
 };
 
-const switchArchiveTab = (type) => { activeArchiveTab.value = type; fetchArchives(type); };
-
-const postArchive = async (data) => {
-  try { await axios.post('/archives', data); alert('铸龙图谱已更新'); fetchArchives(1); } 
-  catch(e) { alert(e.response?.data?.error || '发布失败'); }
+const handleLoadMore = () => {
+  chatPage.value++;
+  fetchMessages(false);
 };
 
-const fetchManifesto = async () => {
-  try { const r = await axios.get('/archives/manifesto'); manifestoContent.value = r.data.content; } 
-  catch(e) { alert('获取总览失败'); }
+const handleDeleteMessage = async (id) => {
+  try {
+    await axios.delete(`/chat/${id}`);
+    const msg = messages.value.find(m => m.id === id);
+    if (msg) msg.is_recalled = true;
+  } catch (e) {
+    showToast('因果无法抹除', 'error');
+  }
 };
 
-const analyzeTech = async (callback) => {
-  try { const r = await axios.get('/archives/analyze'); callback(r.data); } 
-  catch(e) { alert(e.response?.data?.error || '分析失败'); callback(null); }
+const handleForceReply = async (id) => {
+  try {
+    await axios.post('/chat/force-reply', { id });
+    showToast('主已垂听', 'success');
+  } catch (e) {
+    showToast(e.response?.data?.error || '祈祷失败', 'error');
+  }
 };
 
-const generateImage = async ({ prompt, size, resolution }) => {
-  try { 
-    const r = await axios.post('/chat/generate-image', { prompt, size, resolution }); 
-    alert(r.data.message); 
-  } 
-  catch(e) { alert(e.response?.data?.error || '幻化失败'); }
+const handleGenerateImage = async (data) => {
+  isChecking.value = true;
+  try {
+    const res = await axios.post('/chat/generate-image', data);
+    messages.value.push(res.data);
+    startCooldown();
+  } catch (e) {
+    showToast('幻化失败', 'error');
+  } finally {
+    isChecking.value = false;
+  }
 };
 
-const delMsg = async (id) => {
-  if(!confirm('确定要撤回这条誓言吗？')) return;
-  try { await axios.delete(`/chat/${id}`); const m = messages.value.find(x=>x.id===id); if(m) m.is_recalled = true; } 
-  catch(e) { alert(e.response?.data?.error || '撤回失败'); }
+const fetchArchives = async () => {
+  try {
+    const [arcRes, mfRes] = await Promise.all([
+      axios.get(`/archives?type=${activeArchiveTab.value}`),
+      axios.get('/archives/manifesto')
+    ]);
+    archives.value = arcRes.data.data || [];
+    manifesto.value = mfRes.data.content || '';
+  } catch (e) {}
 };
 
-const initWS = () => { 
-  const ws=new WebSocket(import.meta.env.VITE_WS_URL); 
-  ws.onmessage=(e)=>{ 
-    const m=JSON.parse(e.data); const idx = messages.value.findIndex(x=>x.id===m.id);
-    if(idx !== -1) messages.value[idx] = m; else messages.value.push(m); // 核心：新消息放在底部
-  }; 
-  ws.onclose=()=>setTimeout(initWS,3000); 
+const handleSwitchArchiveTab = (tab) => {
+  activeArchiveTab.value = tab;
+  fetchArchives();
 };
 
-const fetchMyOaths = async () => { try { const r = await axios.get(`/chat/my?page=${myOathsPage.value}&limit=${myOathsLimit}`); myOaths.value = r.data.data; myOathsTotal.value = r.data.total; } catch(e) { console.error(e); }};
-const fetchMyFeedbacks = async () => { try { const r = await axios.get('/feedback/my'); myFeedbacks.value = r.data.data; } catch {} };
-const delMyMsg = async (id) => { if(!confirm('确定要抹除这条誓言吗？')) return; try { await axios.delete(`/chat/${id}`); myOaths.value = myOaths.value.filter(m => m.id !== id); myOathsTotal.value--; } catch(e) { alert(e.response?.data?.error || '抹除失败'); }};
-const delFB = async (id) => { if(!confirm('确定要抹除这份信笺吗？')) return; try { await axios.delete(`/feedback/${id}`); myFeedbacks.value = myFeedbacks.value.filter(x => x.id !== id); } catch(e) { alert(e.response?.data?.error || '抹除失败'); }};
-
-const submitFB = async (content) => { try { await axios.post('/feedback/submit', { content }); alert('信笺已投递'); currentView.value = 'my-oaths'; fetchMyFeedbacks(); } catch (e) { alert(e.response?.data?.error || '投递失败'); }};
-
-const fetchAdminFeedbacks = async () => { try { const r = await axios.get(`/admin/feedback?page=${adminPage.value}&limit=${adminLimit}`); adminFeedbacks.value = r.data.data.map(fb => ({...fb, replyInput: ''})); adminTotal.value = r.data.total; } catch(e) { alert(e.response?.data?.error || '获取失败'); }};
-const replyFB = async (fb) => { if(!fb.replyInput.trim()) return; try { await axios.post('/admin/feedback/reply', { id: fb.id, content: fb.replyInput }); fb.is_replied = true; fb.reply_content = fb.replyInput; alert('回响已传达'); } catch(e) { alert(e.response?.data?.error || '回复失败'); }};
-
-const manualGenerateEpic = async () => {
-  if(!confirm('确定要手动触发今日史诗生成吗？这可能需要几十秒时间。')) return;
-  isGeneratingEpic.value = true;
-  try { const r = await axios.post('/archives/generate'); alert(r.data.message || '史诗生成成功！'); } 
-  catch(e) { alert(e.response?.data?.error || '生成失败'); } 
-  finally { isGeneratingEpic.value = false; }
+const handlePostArchive = async (data) => {
+  try {
+    await axios.post('/archives', data);
+    showToast('史诗已镌刻', 'success');
+    fetchArchives();
+  } catch (e) {
+    showToast('镌刻失败', 'error');
+  }
 };
 
-const forceReply = async (id) => { try { const r = await axios.post('/chat/force-reply', { id }); alert(r.data.message); } catch(e) { alert(e.response?.data?.error || '激活失败'); }};
-
-const startThinkingRotation = () => {
-  let idx = 0;
-  thinkingTimer = setInterval(() => { idx = (idx + 1) % thinkingTexts.length; thinkingText.value = thinkingTexts[idx]; }, 1800);
+const handleAnalyzeTech = async (data, cb) => {
+  try {
+    const res = await axios.post('/archives/analyze', data);
+    cb(res.data);
+  } catch (e) {
+    cb(null);
+  }
 };
 
-const runTypewriter = (text, onDone) => {
-  let i = 0; displayedQuote.value = '';
-  const iv = setInterval(() => {
-    displayedQuote.value += text[i++];
-    if (i >= text.length) { clearInterval(iv); onDone && onDone(); }
-  }, 80);
+const handleFeedbackSubmit = async (content) => {
+  try {
+    await axios.post('/feedback/submit', { content });
+    showToast('鳞笺已投递', 'success');
+    activeView.value = 'my-oaths';
+    fetchMyOaths();
+  } catch (e) {
+    showToast('投递失败', 'error');
+  }
 };
 
-onMounted(()=>{ fetchQuote(); fetchMessages(); initWS(); fetchUserInfo(); });
-onBeforeUnmount(() => { window.removeEventListener('resize', handleResize); });
+const fetchAdminFeedbacks = async () => {
+  try {
+    const res = await axios.get(`/admin/feedback?page=${adminPage.value}&limit=10`);
+    adminFeedbacks.value = res.data.data || [];
+    adminTotal.value = res.data.total || 0;
+  } catch (e) {}
+};
 
-watch(currentView, (v) => {
-  if(v==='archives') { fetchArchives(); }
-  if(v==='my-oaths') { fetchMyOaths(); fetchMyFeedbacks(); }
-  if(v==='admin') { fetchAdminFeedbacks(); }
+const handleUpdateManifesto = async () => {
+  isUpdating.value = true;
+  try {
+    const res = await axios.post('/admin/manifesto/update');
+    showToast(res.data.message, 'success');
+    fetchArchives(); // 刷新以获取可能更新的 manifesto
+  } catch (e) {
+    showToast(e.response?.data?.error || '重塑失败', 'error');
+  } finally {
+    isUpdating.value = false;
+  }
+};
+
+const handleAdminReply = async (fb) => {
+  try {
+    await axios.post('/admin/feedback/reply', { id: fb.id, reply_content: fb.replyInput });
+    showToast('回响已传达', 'success');
+    fetchAdminFeedbacks();
+  } catch (e) {
+    showToast('传达失败', 'error');
+  }
+};
+
+const handleManualGenerate = async () => {
+  isGenerating.value = true;
+  try {
+    await axios.post('/archives/generate');
+    showToast('史诗已降下', 'success');
+  } catch (e) {
+    showToast('生成失败', 'error');
+  } finally {
+    isGenerating.value = false;
+  }
+};
+
+const fetchMyOaths = async () => {
+  try {
+    const [msgRes, fbRes] = await Promise.all([
+      axios.get(`/chat/my?page=${myOathsPage.value}&limit=10`),
+      axios.get('/feedback/my')
+    ]);
+    myOaths.value = msgRes.data.data || [];
+    myOathsTotal.value = msgRes.data.total || 0;
+    myFeedbacks.value = fbRes.data.data || [];
+  } catch (e) {}
+};
+
+const handleDeleteFeedback = async (id) => {
+  try {
+    await axios.delete(`/feedback/${id}`);
+    fetchMyOaths();
+  } catch (e) {}
+};
+
+// Auth 相关
+const checkLogin = async () => {
+  const token = localStorage.getItem('token');
+  if (!token) return;
+  try {
+    const res = await axios.get('/user/profile');
+    Object.assign(user, res.data);
+    isLoggedIn.value = true;
+    profileForm.nickname = user.nickname || user.username;
+    profileForm.avatar = user.avatar;
+    profileForm.motto = user.motto;
+  } catch (e) {
+    localStorage.removeItem('token');
+    isLoggedIn.value = false;
+  }
+};
+
+const handleLogout = () => {
+  localStorage.removeItem('token');
+  isLoggedIn.value = false;
+  user.username = '';
+  user.role = '';
+  showProfileModal.value = false;
+  showToast('誓约已解除，后会有期', 'info');
+};
+
+const handleUploadAvatar = async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  const formData = new FormData();
+  formData.append('file', file);
+  try {
+    const res = await axios.post('/upload', formData);
+    profileForm.avatar = res.data.url;
+    showToast('化身幻化成功', 'success');
+  } catch (e) {
+    showToast('幻化失败', 'error');
+  }
+};
+
+const handleOpenModal = (type) => {
+  authModal.value = type;
+};
+
+const handleAuth = async () => {
+  if (isAuthing.value) return;
+  isAuthing.value = true;
+  try {
+    let url = '/auth/login';
+    if (authModal.value === 'register') url = '/auth/register';
+    if (authModal.value === 'forgot') url = '/auth/reset-password';
+
+    const res = await axios.post(url, authForm);
+    if (authModal.value === 'login') {
+      localStorage.setItem('token', res.data.token);
+      await checkLogin();
+      authModal.value = null;
+      showToast('欢迎回到龙屿', 'success');
+    } else {
+      showToast(res.data.message || '操作成功，请登录', 'success');
+      authModal.value = 'login';
+    }
+  } catch (e) {
+    showToast(e.response?.data?.error || '契约感应失败', 'error');
+  } finally {
+    isAuthing.value = false;
+  }
+};
+
+const handleSendSms = async () => {
+  const phone = authModal.value === 'register' || authModal.value === 'forgot' ? authForm.phone : authForm.username;
+  if (!phone) return showToast('请输入手机号', 'warning');
+  try {
+    await axios.post('/auth/send-sms', { phone });
+    showToast('验证码已在云端传送', 'success');
+    smsCooldown.value = 60;
+    const timer = setInterval(() => {
+      smsCooldown.value--;
+      if (smsCooldown.value <= 0) {
+        clearInterval(timer);
+      }
+    }, 1000);
+  } catch (e) {
+    showToast('发送失败', 'error');
+  }
+};
+
+const handleUpdateProfile = async () => {
+  try {
+    await axios.post('/user/profile', {
+      nickname: profileForm.nickname,
+      avatar: profileForm.avatar,
+      motto: profileForm.motto
+    });
+    await checkLogin();
+    showProfileModal.value = false;
+    showToast('契约已重塑', 'success');
+  } catch (e) {
+    showToast('重塑失败', 'error');
+  }
+};
+
+const startCooldown = () => {
+  postCooldown.value = 10;
+  const timer = setInterval(() => {
+    postCooldown.value--;
+    if (postCooldown.value <= 0) clearInterval(timer);
+  }, 1000);
+};
+
+const handlePageChange = (p) => {
+  if (activeView.value === 'admin') { adminPage.value = p; fetchAdminFeedbacks(); }
+  if (activeView.value === 'my-oaths') { myOathsPage.value = p; fetchMyOaths(); }
+};
+
+const handleGetFortune = async () => {
+  isFortuneLoading.value = true;
+  try {
+    const res = await axios.get('/user/fortune');
+    // 强制等待 2.5 秒仪式感动画
+    await new Promise(resolve => setTimeout(resolve, 2500));
+    
+    const fortune = res.data.data;
+    if (fortune) {
+      currentFortune.value = fortune;
+      showFortuneModal.value = true;
+      showToast('签文已降临', 'success');
+    }
+  } catch (e) {
+    showToast(e.response?.data?.error || '灵力不足，无法感应', 'error');
+  } finally {
+    isFortuneLoading.value = false;
+  }
+};
+
+// WebSocket 逻辑
+const ws = ref(null);
+const initWS = () => {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const host = window.location.hostname === 'localhost' ? 'localhost:8888' : window.location.host;
+  const wsUrl = `${protocol}//${host}/dragon/ws`;
+  
+  ws.value = new WebSocket(wsUrl);
+  ws.value.onmessage = (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      if (data.type === 'chunk') {
+        const index = messages.value.findIndex(m => m.id === data.id);
+        if (index > -1) {
+          messages.value[index].content += data.content;
+        }
+      } else if (data.id) {
+        const index = messages.value.findIndex(m => m.id === data.id);
+        if (index > -1) {
+          messages.value[index] = { ...messages.value[index], ...data };
+        } else if (activeView.value === 'chat') {
+          messages.value.push(data);
+        }
+      }
+    } catch (err) {}
+  };
+  ws.value.onclose = () => {
+    setTimeout(initWS, 3000);
+  };
+};
+
+onMounted(() => {
+  checkLogin();
+  fetchQuote();
+  initWS();
+  window.addEventListener('resize', () => {
+    isMobile.value = window.innerWidth <= 768;
+  });
 });
 </script>
 
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Serif+SC:wght@400;600&family=Outfit:wght@300;400;600&display=swap');
-
+/* 全局样式迁移自 style.css 或补充 */
 :root {
-  --primary: #c0392b;
-  --primary-glow: rgba(192, 57, 43, 0.4);
+  --text-main: #f0f0f0;
   --bg-dark: #050505;
-  --glass: rgba(255, 255, 255, 0.03);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --text-main: #e0e0e0;
-  --text-dim: #888;
-  --font-fancy: 'Noto Serif SC', serif;
-  --font-main: 'Outfit', 'Inter', sans-serif;
-  --safe-bottom: env(safe-area-inset-bottom);
 }
 
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body { margin: 0; background: var(--bg-dark); color: var(--text-main); font-family: 'Inter', sans-serif; overflow: hidden; height: 100vh; }
 
-body {
-  background: var(--bg-dark);
-  color: var(--text-main);
-  font-family: var(--font-main);
-  overflow: hidden;
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
+#app { display: flex; width: 100vw; height: 100vh; background: radial-gradient(circle at 50% 50%, #1a0a0a 0%, #050505 100%); }
+
+.main-content { flex: 1; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+
+/* 视图切换动画 */
+.fade-view-enter-active, .fade-view-leave-active { transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+.fade-view-enter-from { opacity: 0; transform: translateY(10px); }
+.fade-view-leave-to { opacity: 0; transform: translateY(-10px); }
+
+/* 弹窗样式 */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(20px); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.modal-card { width: 100%; max-width: 440px; padding: 40px; border-radius: 32px; border: 1px solid rgba(255,255,255,0.08); background: rgba(15,15,15,0.9); box-shadow: 0 40px 100px rgba(0,0,0,0.8); }
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+.modal-header h3 { font-family: 'Noto Serif SC', serif; letter-spacing: 4px; font-size: 1.3rem; margin: 0; color: #fff; }
+.btn-close { background: none; border: none; color: #444; font-size: 2rem; cursor: pointer; transition: .3s; }
+.btn-close:hover { color: #c0392b; transform: rotate(90deg); }
+
+.form-group { margin-bottom: 24px; }
+.form-group label { display: block; font-size: 0.75rem; color: #555; letter-spacing: 2px; margin-bottom: 10px; font-weight: bold; }
+.form-group input, .form-group textarea { width: 100%; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 14px 18px; color: #fff; outline: none; transition: 0.3s; font-size: 1rem; }
+.form-group input:focus { border-color: #c0392b; box-shadow: 0 0 15px rgba(192,57,43,0.2); }
+
+.pwd-row { display: flex; gap: 12px; }
+.btn-sms { background: rgba(192,57,43,0.1); border: 1px solid rgba(192,57,43,0.3); color: #c0392b; border-radius: 10px; padding: 0 20px; cursor: pointer; font-size: 0.8rem; transition: .3s; }
+.btn-sms:hover:not(:disabled) { background: #c0392b; color: #fff; }
+
+.btn-auth { width: 100%; margin-top: 10px; height: 54px; font-size: 1.1rem; }
+.auth-switch { margin-top: 24px; text-align: center; font-size: 0.85rem; color: #444; }
+.auth-switch a { color: #c0392b; cursor: pointer; font-weight: bold; margin-left: 8px; }
+
+/* Toast 提示 */
+.global-toast { position: fixed; top: 30px; left: 50%; transform: translateX(-50%); padding: 12px 32px; border-radius: 50px; background: rgba(20,20,20,0.9); border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); z-index: 9999; color: #fff; font-size: 0.95rem; font-weight: 500; box-shadow: 0 20px 40px rgba(0,0,0,0.5); letter-spacing: 1px; }
+.global-toast.error { border-color: #c0392b; color: #ff6b6b; }
+.global-toast.success { border-color: #27ae60; color: #2ecc71; }
+
+.t-toast-enter-active, .t-toast-leave-active { transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+.t-toast-enter-from { opacity: 0; transform: translate(-50%, -20px); }
+.t-toast-leave-to { opacity: 0; transform: translate(-50%, -20px); }
+
+.t-modal-enter-active, .t-modal-leave-active { transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+.t-modal-enter-from, .t-modal-leave-to { opacity: 0; transform: scale(0.9) translateY(20px); filter: blur(10px); }
+
+/* 求签动画样式 */
+.fortune-loading-overlay {
+  position: fixed; inset: 0; z-index: 3000;
+  background: radial-gradient(circle at center, #1a0a0a 0%, #000 100%);
+  display: flex; align-items: center; justify-content: center;
 }
+.fortune-spirit { position: relative; width: 300px; height: 300px; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+.spirit-core { width: 12px; height: 12px; background: #c0392b; border-radius: 50%; box-shadow: 0 0 40px 10px #c0392b, 0 0 100px 20px rgba(192,57,43,0.4); z-index: 5; animation: pulse-core 1.5s infinite ease-in-out; }
+.spirit-ring { position: absolute; border-radius: 50%; border: 1px solid rgba(192,57,43,0.2); }
+.ring-1 { width: 60px; height: 60px; animation: spin-ring 3s linear infinite; border-top-color: #c0392b; }
+.ring-2 { width: 120px; height: 120px; animation: spin-ring 5s linear infinite reverse; border-bottom-color: #c0392b; opacity: 0.6; }
+.ring-3 { width: 180px; height: 180px; animation: spin-ring 8s linear infinite; border-left-color: #c0392b; opacity: 0.3; }
 
-.app {
-  height: 100vh;
-  width: 100vw;
-  display: flex;
-  background: var(--bg-dark);
-  position: relative;
-  overflow: hidden;
-}
+.spirit-text-epic { margin-top: 220px; text-align: center; }
+.spirit-glow-text { font-family: 'Noto Serif SC', serif; font-size: 1.4rem; color: #fff; letter-spacing: 4px; text-shadow: 0 0 20px rgba(255,255,255,0.5); }
+.spirit-sub { font-size: 0.75rem; color: #444; margin-top: 10px; letter-spacing: 2px; }
 
-/* 电脑端背景 */
-.app::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image: linear-gradient(135deg, rgba(5,5,5,0.9) 0%, rgba(5,5,5,0.4) 50%, rgba(5,5,5,0.8) 100%), 
-                    url('https://xiaolongya.cn/uploads/1778566805009571718.jpg');
-  background-size: cover;
-  background-position: center;
-  z-index: -1;
-  transform: translateZ(0);
-}
+@keyframes pulse-core { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: 0.8; } }
+@keyframes spin-ring { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-.main-view { 
-  flex: 1; 
-  display: flex; 
-  flex-direction: column; 
-  position: relative; 
-  overflow: hidden;
-  contain: size layout style;
-}
-
-.is-mobile { flex-direction: column; }
-.is-mobile .main-view { padding-bottom: calc(70px + var(--safe-bottom)); }
-
-/* 手机端背景 */
+/* 移动端适配 */
 @media (max-width: 768px) {
-  .app::before {
-    background-image: linear-gradient(to bottom, rgba(5,5,5,0.95), rgba(5,5,5,0.7)), 
-                      url('https://xiaolongya.cn/uploads/1778566827931486399.jpg');
-  }
+  .main-content { padding: 10px; padding-bottom: 90px; }
+  .global-toast { top: 20px; width: 90%; left: 5%; transform: translateX(0); margin-left: 0; }
 }
 
-.t-view-enter-active, .t-view-leave-active { transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
-.t-view-enter-from { opacity: 0; transform: translateY(10px) scale(1.01); filter: blur(10px); }
-.t-view-leave-to { opacity: 0; transform: translateY(-10px) scale(0.99); filter: blur(10px); }
-
-/* 灵语签文样式 */
-.fortune-overlay { 
-  position: fixed; inset: 0; background: rgba(0,0,0,0.9); 
-  backdrop-filter: blur(30px); z-index: 12000; 
-  display: flex; align-items: center; justify-content: center; padding: 20px;
-  pointer-events: auto;
+@font-face {
+  font-family: 'Noto Serif SC';
+  src: url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&display=swap');
 }
-.fortune-card { 
-  width: 100%; max-width: 400px; padding: 60px 40px; text-align: center; 
-  border: 1px solid rgba(255,255,255,0.05); background: rgba(10,10,10,0.9);
-  box-shadow: 0 40px 100px rgba(0,0,0,0.8); border-radius: 32px;
-}
-.f-luck { font-family: var(--font-fancy); font-size: 3.5rem; color: #fff; margin-bottom: 8px; letter-spacing: 12px; text-shadow: 0 0 20px rgba(192,57,43,0.5); }
-.f-title { font-size: 1.1rem; color: #c0392b; font-weight: bold; letter-spacing: 6px; margin-bottom: 30px; }
-.f-div { height: 1px; background: linear-gradient(to right, transparent, rgba(192,57,43,0.3), transparent); margin-bottom: 30px; }
-.f-interpretation { font-family: var(--font-fancy); font-size: 1.4rem; color: #eee; line-height: 1.6; margin-bottom: 40px; }
-
-.f-grid { display: flex; flex-direction: column; gap: 16px; margin-bottom: 40px; }
-.f-box { padding: 16px; border-radius: 16px; text-align: left; position: relative; overflow: hidden; }
-.f-box.suit { background: rgba(192,57,43,0.08); border: 1px solid rgba(192,57,43,0.15); }
-.f-box.avoid { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); }
-
-.f-box .label { font-size: 0.65rem; font-weight: bold; margin-bottom: 12px; letter-spacing: 1px; }
-.f-box.suit .label { color: #c0392b; }
-.f-box.avoid .label { color: #666; }
-.items-list { display: flex; flex-direction: column; gap: 6px; }
-.it-row { font-size: 0.95rem; color: #eee; font-weight: 500; letter-spacing: 1px; }
-
-.btn-close-f { background: #c0392b; color: #fff; border: none; padding: 14px 50px; border-radius: 30px; font-weight: bold; cursor: pointer; transition: .3s; }
-.btn-close-f:hover { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(192,57,43,0.4); }
-
-.modal-layer { position: fixed; z-index: 10000; pointer-events: none; }
-.modal-layer > * { pointer-events: auto; }
-
-.audit-mask {
-  position: fixed; inset: 0; z-index: 11000; background: rgba(0,0,0,0.8);
-  backdrop-filter: blur(20px); display: flex; align-items: center; justify-content: center;
-}
-
-.audit-visual { width: 180px; height: 180px; position: relative; }
-.spin-ring {
-  position: absolute; inset: 0; border: 2px solid rgba(192,57,43,0.1);
-  border-top-color: var(--primary); border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: var(--primary); }
 </style>

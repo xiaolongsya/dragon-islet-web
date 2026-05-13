@@ -70,6 +70,7 @@ defineEmits(['enter', 'show-about', 'get-fortune']);
 .view-home { 
   flex: 1; display: flex; align-items: center; justify-content: center; 
   padding: 60px; position: relative; overflow-y: auto; overflow-x: hidden;
+  background: transparent;
 }
 
 .home-content { 
@@ -103,6 +104,21 @@ defineEmits(['enter', 'show-about', 'get-fortune']);
 }
 .q-mark.open { left: -10px; top: -50px; }
 .q-mark.close { right: -10px; bottom: -60px; }
+
+/* 隐藏彩蛋：情话模式 */
+.quote-main.secret .q-content {
+  color: #ffb6c1; /* 浪漫樱花粉 */
+  text-shadow: 0 0 20px rgba(255, 182, 193, 0.6);
+  animation: heart-beat 3s ease-in-out infinite;
+}
+.quote-main.secret .q-mark {
+  color: #ffb6c1;
+  opacity: 0.15;
+}
+@keyframes heart-beat {
+  0%, 100% { transform: scale(1); filter: brightness(1); }
+  50% { transform: scale(1.02); filter: brightness(1.2); }
+}
 
 .quote-explain { 
   margin-top: 40px; font-size: 1.2rem; color: #888; font-style: italic; 

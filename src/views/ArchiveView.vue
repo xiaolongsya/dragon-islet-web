@@ -33,7 +33,7 @@
 
         <!-- 架构总览浮层 -->
         <transition name="t-modal">
-          <div v-if="manifesto" class="manifesto-overlay" @click.self="$emit('close-manifesto')">
+          <div v-if="showManifesto" class="manifesto-overlay" @click.self="$emit('close-manifesto')">
             <div class="manifesto-card glass-card pop">
               <div class="mf-head">
                 <div class="mf-title-wrap">
@@ -82,7 +82,8 @@ const props = defineProps({
   archives: Array,
   isAdmin: Boolean,
   activeTab: Number,
-  manifesto: String
+  manifesto: String,
+  showManifesto: Boolean
 });
 
 const emit = defineEmits(['switch-tab', 'post-archive', 'show-manifesto', 'close-manifesto', 'analyze-tech']);
@@ -106,10 +107,11 @@ const parsedManifesto = computed(() => {
 });
 
 const handleAnalyze = async () => {
+  if (isAnalyzing.value) return;
   isAnalyzing.value = true;
-  emit('analyze-tech', (suggestion) => {
+  emit('analyze-tech', { title: postForm.title, content: postForm.content }, (suggestion) => {
     if(suggestion) {
-      postForm.title = suggestion.title || '';
+      postForm.title = suggestion.version || suggestion.title || '';
       postForm.content = suggestion.content || '';
     }
     isAnalyzing.value = false;

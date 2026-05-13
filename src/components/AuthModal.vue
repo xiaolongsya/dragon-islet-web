@@ -2,22 +2,45 @@
   <transition name="t-modal">
     <div class="modal-mask" @click.self="$emit('close')">
       <div class="modal-card">
-        <div class="auth-title">{{ type==='login'?'唤醒龙魂':'建立契约' }}</div>
+        <div class="auth-title">
+          {{ type === 'login' ? '唤醒龙魂' : (type === 'register' ? '建立契约' : '找回密语') }}
+        </div>
         <div class="auth-div"></div>
-        <div class="form-g"><label class="f-lbl">名号</label><input class="f-inp" v-model="form.username" placeholder="名号"></div>
-        <div class="form-g"><label class="f-lbl">密语</label><input class="f-inp" v-model="form.password" type="password" placeholder="密语"></div>
-        <template v-if="type==='register'">
+        
+        <template v-if="type !== 'forgot'">
+          <div class="form-g"><label class="f-lbl">身份识别</label><input class="f-inp" v-model="form.username" placeholder="名号 或 手机号"></div>
+          <div class="form-g"><label class="f-lbl">密语</label><input class="f-inp" v-model="form.password" type="password" placeholder="密语"></div>
+        </template>
+
+        <template v-if="type === 'register' || type === 'forgot'">
           <div class="form-g">
             <label class="f-lbl">手机验证</label>
             <div class="sms-row">
               <input class="f-inp sms-inp" v-model="form.phone" placeholder="手机号">
-              <button class="btn-sms" @click="$emit('send-sms')" :disabled="smsCooldown>0">{{ smsCooldown>0?smsCooldown+'s':'获取验证码' }}</button>
+              <button class="btn-sms" @click="$emit('send-sms')" :disabled="smsCooldown > 0">
+                {{ smsCooldown > 0 ? smsCooldown + 's' : '获取验证码' }}
+              </button>
             </div>
           </div>
           <div class="form-g"><label class="f-lbl">验证码</label><input class="f-inp" v-model="form.code" placeholder="6位验证码"></div>
+          <div v-if="type === 'forgot'" class="form-g">
+            <label class="f-lbl">新密语</label>
+            <input class="f-inp" v-model="form.password" type="password" placeholder="输入新密语">
+          </div>
         </template>
-        <button class="btn-p f-btn" @click="$emit('submit')">{{ type==='login'?'登录':'注册' }}</button>
-        <div class="auth-sw" @click="$emit('switch')">{{ type==='login'?'初入龙屿？建立契约':'已有契约？去登录' }}</div>
+
+        <button class="btn-p f-btn" @click="$emit('submit')">
+          {{ type === 'login' ? '登录' : (type === 'register' ? '注册' : '重塑密语') }}
+        </button>
+
+        <div class="auth-footer">
+          <div class="auth-sw" @click="$emit('switch', type === 'login' ? 'register' : 'login')">
+            {{ type === 'login' ? '初入龙屿？建立契约' : '已有契约？去登录' }}
+          </div>
+          <div v-if="type === 'login'" class="auth-sw forgot-link" @click="$emit('switch', 'forgot')">
+            遗忘密语？
+          </div>
+        </div>
       </div>
     </div>
   </transition>
@@ -47,9 +70,15 @@ defineEmits(['close', 'submit', 'switch', 'send-sms']);
 .btn-sms:hover:not(:disabled) { border-color: #c0392b; color: #c0392b; }
 .btn-p { width: 100%; background: #c0392b; color: #fff; border: none; border-radius: 10px; padding: 14px; font-weight: bold; cursor: pointer; transition: .2s; margin-top: 10px; }
 .btn-p:hover { background: #e74c3c; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(192,57,43,0.3); }
-.auth-sw { text-align: center; margin-top: 24px; font-size: .85rem; color: #555; cursor: pointer; transition: .2s; }
+.auth-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; }
+.auth-sw { font-size: .85rem; color: #555; cursor: pointer; transition: .2s; }
 .auth-sw:hover { color: #c0392b; }
+.forgot-link { color: #777; font-size: .8rem; }
+.forgot-link:hover { text-decoration: underline; }
 
-.t-modal-enter-active, .t-modal-leave-active { transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-.t-modal-enter-from, .t-modal-leave-to { opacity: 0; transform: scale(0.9) translateY(20px); }
+@media (max-width: 480px) {
+  .modal-card { padding: 30px 20px; width: 95%; }
+  .auth-title { font-size: 1.5rem; }
+  .auth-footer { flex-direction: column; gap: 12px; }
+}
 </style>

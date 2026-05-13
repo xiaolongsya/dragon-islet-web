@@ -6,10 +6,16 @@
           <div class="admin-title-wrap">
             <div class="my-msg-header">🛡️ 龙屿守护者 · 鳞笺审阅</div>
           </div>
-          <button class="btn-p btn-glow" :disabled="isGenerating" @click="$emit('manual-generate')">
-            <span v-if="isGenerating" class="spin-sm">🌀</span>
-            {{ isGenerating ? '正在追溯时空...' : '✦ 手动降下今日史诗' }}
-          </button>
+          <div class="admin-actions-top">
+            <button class="btn-p btn-outline" :disabled="isUpdating" @click="$emit('update-manifesto')">
+              <span v-if="isUpdating" class="spin-sm">🌀</span>
+              {{ isUpdating ? '正在重塑架构...' : '✦ 更新系统架构' }}
+            </button>
+            <button class="btn-p btn-glow" :disabled="isGenerating" @click="$emit('manual-generate')">
+              <span v-if="isGenerating" class="spin-sm">🌀</span>
+              {{ isGenerating ? '正在追溯时空...' : '✦ 手动降下今日史诗' }}
+            </button>
+          </div>
         </div>
         <div v-if="items.length===0" class="empty-tip">暂无待审阅的鳞笺</div>
         <div v-for="fb in items" :key="fb.id" class="admin-fb-card">
@@ -42,9 +48,10 @@ defineProps({
   total: Number,
   page: Number,
   limit: Number,
-  isGenerating: Boolean
+  isGenerating: Boolean,
+  isUpdating: Boolean
 });
-defineEmits(['reply', 'change-page', 'manual-generate']);
+defineEmits(['reply', 'change-page', 'manual-generate', 'update-manifesto']);
 
 const fmtDate = t => new Date(t).toLocaleString('zh-CN');
 </script>
@@ -57,6 +64,9 @@ const fmtDate = t => new Date(t).toLocaleString('zh-CN');
 .admin-title-wrap { display: flex; align-items: center; gap: 16px; }
 .admin-logo { width: 44px; height: 44px; border-radius: 12px; border: 1px solid rgba(192,57,43,0.3); }
 .my-msg-header { font-size: 1.5rem; font-weight: 600; color: #eee; border-left: 4px solid #c0392b; padding-left: 16px; font-family: 'Noto Serif SC', serif; letter-spacing: 4px; }
+.admin-actions-top { display: flex; gap: 16px; }
+.btn-outline { background: none; border: 1px solid rgba(192,57,43,0.5); color: #c0392b; }
+.btn-outline:hover:not(:disabled) { background: rgba(192,57,43,0.1); }
 .btn-glow { box-shadow: 0 0 15px rgba(192,57,43,0.2); animation: pulse-btn 3s infinite; display: flex; align-items: center; gap: 8px; }
 .btn-glow:disabled { opacity: 0.7; cursor: wait; animation: none; }
 .spin-sm { display: inline-block; animation: spin 1s linear infinite; font-size: 1rem; }
