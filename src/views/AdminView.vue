@@ -102,4 +102,16 @@ const openMonitor = () => {
 .btn-monitor:hover { background: #34495e; border-color: #2ecc71; box-shadow: 0 0 15px rgba(46, 204, 113, 0.2); }
 .monitor-icon { font-size: 1.1rem; }
 .btn-sm { padding: 6px 16px; font-size: .8rem; }
+
+@media (max-width: 768px) {
+  .msg-list { padding: 20px 15px; }
+  .admin-header { flex-direction: column; align-items: flex-start; gap: 20px; margin-bottom: 30px; }
+  .admin-actions-top { width: 100%; flex-wrap: wrap; gap: 10px; }
+  .admin-actions-top .btn-p { flex: 1; font-size: 0.7rem; padding: 8px 10px; white-space: nowrap; min-width: 100px; }
+  .my-msg-header { font-size: 1.1rem; border-left-width: 3px; }
+  .admin-fb-card { padding: 20px; border-radius: 16px; }
+  .fb-card-content { font-size: 0.9rem; line-height: 1.6; }
+  .fb-reply-form textarea { height: 80px; font-size: 0.85rem; padding: 12px; }
+  .fb-card-top { font-size: 0.75rem; }
+}
 </style>

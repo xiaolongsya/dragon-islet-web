@@ -120,8 +120,9 @@
                   <div v-for="(m, i) in dragonChat" :key="i" class="m-bubble" :class="m.role">{{ m.content }}</div>
                 </div>
                 <div class="chat-input-mobile">
+                  <button class="btn-m-magic" @click="generateImage" :disabled="isGenerating">幻化</button>
                   <input v-model="chatInput" @keyup.enter="sendChat" placeholder="倾听它的心声...">
-                  <button @click="sendChat">唤起</button>
+                  <button @click="sendChat" :disabled="isChatting">传音</button>
                 </div>
               </div>
             </div>
@@ -264,33 +265,7 @@
               <div class="p-tab" :class="{active: activePanel === 'tasks'}" @click="activePanel = 'tasks'">每日修行</div>
               <div class="p-tab" :class="{active: activePanel === 'chat'}" @click="activePanel = 'chat'">灵魂私语</div>
             </div>
-          <!-- 右侧：任务与对话 -->
-          <div class="tasks-section glass-card pop">
-            <div class="panel-tabs">
-              <div class="p-tab" :class="{active: activePanel === 'tasks'}" @click="activePanel = 'tasks'">每日修行</div>
-              <div class="p-tab" :class="{active: activePanel === 'chat'}" @click="activePanel = 'chat'">灵魂私语</div>
-            </div>
 
-            <!-- 任务列表 -->
-            <div v-if="activePanel === 'tasks'" class="tasks-list-wrap">
-              <div class="card-header-flex">
-                <span class="rarity-bonus" v-if="dragon.rarity !== 'common'">{{ dragon.rarity === 'epic' ? '5.0x' : '2.5x' }} 奖励</span>
-              </div>
-              <div class="tasks-list">
-                <div v-if="tasks.length===0" class="task-empty">暂无修行任务</div>
-                <div v-for="task in tasks" :key="task.id" class="task-item" :class="{ 'is-completed': task.progress >= task.max_progress, 'is-claimed': task.is_claimed }">
-                  <div class="t-info">
-                    <div class="t-name">{{ taskLabels[task.task_type] || '修行任务' }}</div>
-                    <div class="t-progress-text">{{ task.progress }}/{{ task.max_progress }}</div>
-                  </div>
-                  <div class="t-action">
-                    <button v-if="task.progress >= task.max_progress && !task.is_claimed" class="btn-claim-reward" @click="claimReward(task.id)">领赏</button>
-                    <span v-else-if="task.is_claimed" class="t-status-done">已圆满</span>
-                    <div v-else class="t-mini-bar"><div class="t-mini-fill" :style="{width: (task.progress/task.max_progress*100)+'%'}"></div></div>
-                  </div>
-                </div>
-              </div>
-            </div>
             <!-- 任务列表 -->
             <div v-if="activePanel === 'tasks'" class="tasks-list-wrap">
               <div class="card-header-flex">
@@ -320,22 +295,7 @@
                   <span class="s-p-val">{{ dragon.soul || '纯净无瑕' }}</span>
                 </div>
               </div>
-            <!-- 私语界面 -->
-            <div v-else class="dragon-chat-wrap">
-              <div class="soul-status">
-                <div class="soul-personality">
-                  <span class="s-p-label">灵魂特质:</span>
-                  <span class="s-p-val">{{ dragon.soul || '纯净无瑕' }}</span>
-                </div>
-              </div>
 
-              <div class="d-chat-messages" ref="chatScroll">
-                <div v-for="(msg, idx) in dragonChat" :key="idx" class="d-msg" :class="msg.role">
-                  <div class="d-msg-bubble" :class="{ thinking: !msg.content && msg.role === 'dragon' }">
-                    {{ msg.content || (msg.role === 'dragon' ? '...' : '') }}
-                  </div>
-                </div>
-              </div>
               <div class="d-chat-messages" ref="chatScroll">
                 <div v-for="(msg, idx) in dragonChat" :key="idx" class="d-msg" :class="msg.role">
                   <div class="d-msg-bubble" :class="{ thinking: !msg.content && msg.role === 'dragon' }">
@@ -345,15 +305,9 @@
               </div>
 
               <div class="d-chat-input-row">
+                <button class="btn-d-magic" @click="generateImage" :disabled="isGenerating">幻化</button>
                 <input v-model="chatInput" @keyup.enter="sendChat" placeholder="倾听它的心声..." :disabled="isChatting">
-                <button @click="sendChat" :disabled="isChatting || !chatInput.trim()">唤起</button>
-              </div>
-            </div>
-          </div>
-        </div>
-              <div class="d-chat-input-row">
-                <input v-model="chatInput" @keyup.enter="sendChat" placeholder="倾听它的心声..." :disabled="isChatting">
-                <button @click="sendChat" :disabled="isChatting || !chatInput.trim()">唤起</button>
+                <button @click="sendChat" :disabled="isChatting || !chatInput.trim()">传音</button>
               </div>
             </div>
           </div>
@@ -474,9 +428,6 @@
 const props = defineProps(['isLoggedIn', 'user', 'defAv', 'isMobile']);
 const emit = defineEmits(['open-modal', 'switch-view']);
 
-const props = defineProps(['isLoggedIn', 'user', 'defAv', 'isMobile']);
-const emit = defineEmits(['open-modal', 'switch-view']);
-
 import { ref, onMounted, computed, watch, onBeforeUnmount } from 'vue';
 import axios from 'axios';
 
@@ -512,12 +463,6 @@ const mobileChatScroll = ref(null);
 const showTasksDrawer = ref(false);
 const showChatDrawer = ref(false);
 const showInventoryDrawer = ref(false);
-const mobileChatScroll = ref(null);
-
-// 手机端抽屉状态
-const showTasksDrawer = ref(false);
-const showChatDrawer = ref(false);
-const showInventoryDrawer = ref(false);
 
 const getItemIcon = (item) => {
   if (item.name === '龙牙') return '🦴';
@@ -527,9 +472,15 @@ const getItemIcon = (item) => {
 };
 
 const getItemName = (item) => {
-  if (item.type === 'custom' || item.name) return item.name;
-  const names = { 'food': '龙粮', 'exp_pill': '龙髓丹', 'sacrifice_stone': '献祭之石' };
-  return names[item.type] || '神秘物品';
+  if (item.name) return item.name;
+  const names = { 
+    'food': '龙粮', 
+    'exp_pill': '龙髓丹', 
+    'sacrifice_stone': '献祭之石',
+    'material': '炼金材料',
+    'custom': '龙屿奇珍'
+  };
+  return names[item.type] || '龙之行囊物品';
 };
 
 const isUsable = (item) => {
@@ -549,6 +500,7 @@ const useItem = async (item) => {
   finally { isActing.value = false; }
 };
 
+const lastShareAt = ref(0);
 const isActing = ref(false);
 const showRename = ref(false);
 const showReleaseModal = ref(false);
@@ -574,8 +526,12 @@ const startTypewriter = (text) => {
       i++;
     } else {
       clearInterval(typewriterTimer);
+      // 10秒后气泡消失
+      setTimeout(() => {
+        displayText.value = '';
+      }, 10000);
     }
-  }, 50); // 50ms 一个字，更灵动
+  }, 50);
 };
 
 const fetchDragonSpeak = async () => {
@@ -592,9 +548,9 @@ const fetchDragonSpeak = async () => {
 };
 
 const playDragonAudio = () => {
-  console.log('尝试播放龙语:', audioUrl.value);
   if (!audioUrl.value) {
-    alert('龙宝宝正处于深度冥想，暂时无法感应声音');
+    fetchDragonSpeak(); // 尝试再次拉取
+    alert('龙语正在共鸣中，请稍后再试...');
     return;
   }
   if (isPlayingAudio.value) return;
@@ -762,7 +718,9 @@ const sendChat = async () => {
       }
     }
     
-    if (dragonChat.value.length % 10 === 0) fetchStatus();
+    // 会话结束后，同步更新主界面的文字与音频
+    fetchDragonSpeak();
+    fetchStatus(); 
   } catch (e) {
     alert('对话失败：' + e.message);
   } finally {
@@ -778,20 +736,11 @@ const scrollToBottom = () => {
     if (mobileChatScroll.value) {
       mobileChatScroll.value.scrollTop = mobileChatScroll.value.scrollHeight;
     }
-    if (mobileChatScroll.value) {
-      mobileChatScroll.value.scrollTop = mobileChatScroll.value.scrollHeight;
-    }
   }, 100);
 };
 
 watch(activePanel, (newVal) => {
   if (newVal === 'chat') {
-    scrollToBottom();
-  }
-});
-
-watch(showChatDrawer, (newVal) => {
-  if (newVal) {
     scrollToBottom();
   }
 });
@@ -849,11 +798,17 @@ const generateImage = async () => {
 };
 
 const shareImage = async () => {
+  const now = Date.now();
+  if (now - lastShareAt.value < 10000) {
+    alert('灵力尚在波动，请稍后再试（冷却中）');
+    return;
+  }
   if (isActing.value) return;
   isActing.value = true;
   try {
     await axios.post('/raising/share');
     alert('真身已分享至誓约广场');
+    lastShareAt.value = now;
     await fetchTasks();
   } catch(e) { alert(e.response?.data?.error || '分享失败'); }
   finally { isActing.value = false; }
@@ -939,18 +894,6 @@ onBeforeUnmount(() => clearInterval(pollTimer));
   border-top-color: transparent; animation: spin 1s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
-  background: radial-gradient(circle at top right, rgba(192,57,43,0.05), transparent 60%);
-}
-
-.loading-state {
-  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 20px; color: #666; font-family: 'Noto Serif SC', serif; letter-spacing: 4px;
-}
-.loading-orb {
-  width: 40px; height: 40px; border: 2px solid #c0392b; border-radius: 50%;
-  border-top-color: transparent; animation: spin 1s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
 
 .glass-card { 
   background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); 
@@ -987,7 +930,6 @@ onBeforeUnmount(() => clearInterval(pollTimer));
 @keyframes magic-flow { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
 
 /* 中部：主内容区 */
-.raising-grid { 
 .raising-grid { 
 	display: grid; grid-template-columns: 1fr 400px; gap: 20px;
 }
@@ -1197,9 +1139,9 @@ onBeforeUnmount(() => clearInterval(pollTimer));
   border-color: #c0392b; background: rgba(192,57,43,0.1); 
   box-shadow: 0 0 15px rgba(192,57,43,0.3);
 }
-.item-icon { font-size: 1.8rem; }
-.item-count { position: absolute; top: 5px; right: 8px; font-size: 0.7rem; color: #c0392b; font-weight: 900; }
-.item-name-tag { font-size: 0.6rem; color: #555; }
+.item-icon { font-size: 1.3rem; }
+.item-count { position: absolute; top: 4px; right: 6px; font-size: 0.65rem; color: #c0392b; font-weight: 900; }
+.item-name-tag { font-size: 0.55rem; color: #666; margin-top: 2px; }
 
 .use-overlay {
   position: absolute; inset: 0; background: rgba(192,57,43,0.9);
@@ -1214,17 +1156,12 @@ onBeforeUnmount(() => clearInterval(pollTimer));
 .btn-use-inner:hover { transform: scale(1.1); }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 
-/* 桌面端布局适配 */
-/* 桌面端布局适配 */
 @media (max-width: 1000px) {
-  .raising-grid { grid-template-columns: 1fr; }
   .raising-grid { grid-template-columns: 1fr; }
   .tasks-section { height: 300px; }
   .top-status-bar { grid-template-columns: repeat(2, 1fr); gap: 15px; }
 }
 
-.drawer-slide-enter-active, .drawer-slide-leave-active { transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-.drawer-slide-enter-from, .drawer-slide-leave-to { transform: translateY(100%); }
 .drawer-slide-enter-active, .drawer-slide-leave-active { transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
 .drawer-slide-enter-from, .drawer-slide-leave-to { transform: translateY(100%); }
 
@@ -1288,7 +1225,7 @@ onBeforeUnmount(() => clearInterval(pollTimer));
 
 /* 响应式分支控制 */
 .mobile-layout-branch { display: none; }
-.desktop-layout-branch { display: block; flex: 1; display: flex; flex-direction: column; gap: 20px; }
+.desktop-layout-branch { display: flex; flex: 1; flex-direction: column; gap: 20px; }
 
 @media (max-width: 600px) {
   .desktop-layout-branch { display: none !important; }
@@ -1300,6 +1237,7 @@ onBeforeUnmount(() => clearInterval(pollTimer));
     height: 100vh; display: flex; flex-direction: column; justify-content: center;
     background: #050505; padding: 20px;
   }
+  .top-status-bar, .raising-grid, .bottom-section { display: none !important; }
 }
 
 .mobile-top-stats {
@@ -1337,7 +1275,8 @@ onBeforeUnmount(() => clearInterval(pollTimer));
 .m-st-time { font-size: 0.65rem; color: rgba(255,255,255,0.3); }
 
 .mobile-hero-section {
-  flex: 1; display: flex; flex-direction: column; position: relative; padding: 20px; min-height: 0;
+  display: flex; flex-direction: column; position: relative; padding: 20px;
+  justify-content: flex-start; gap: 15px;
 }
 .hero-name-row { text-align: center; margin-bottom: 15px; }
 .hero-name { font-family: 'Noto Serif SC', serif; font-size: 1.6rem; color: #fff; margin: 0; }
@@ -1345,16 +1284,15 @@ onBeforeUnmount(() => clearInterval(pollTimer));
 .hero-stage { font-size: 0.8rem; color: #555; margin-top: 4px; }
 
 .hero-visual-container {
-  flex: 1; position: relative; display: flex; align-items: center; justify-content: center; min-height: 0;
-  overflow: visible;
+  position: relative; display: flex; align-items: center; justify-content: center; min-height: 200px;
+  overflow: visible; margin-bottom: 10px;
 }
 .hero-glow { position: absolute; width: 80%; height: 80%; background: radial-gradient(circle, rgba(192,57,43,0.15) 0%, transparent 70%); animation: hero-pulse 3s infinite; }
 .hero-img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 32px; filter: drop-shadow(0 20px 50px rgba(0,0,0,0.5)); }
 .hero-magic-placeholder { width: 200px; height: 200px; border: 1px dashed #444; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #444; font-size: 0.9rem; }
 
 .hero-quick-actions {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 15px 0;
-  margin-top: auto;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 10px 0;
 }
 .action-tile {
   background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
@@ -1365,8 +1303,8 @@ onBeforeUnmount(() => clearInterval(pollTimer));
 .action-tile:active { transform: scale(0.9) rotate(5deg); background: rgba(192,57,43,0.2); color: #fff; border-color: #c0392b; }
 
 .mobile-modular-nav {
-  height: 80px; display: flex; gap: 1px; background: rgba(255,255,255,0.02);
-  border-top: 1px solid rgba(255,255,255,0.05); padding-bottom: 10px;
+  display: flex; gap: 1px; background: rgba(255,255,255,0.02);
+  border-top: 1px solid rgba(255,255,255,0.05); padding: 10px 0 20px;
 }
 .nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
 .n-icon { font-size: 1.4rem; }
@@ -1387,19 +1325,20 @@ onBeforeUnmount(() => clearInterval(pollTimer));
 
 .chat-drawer { height: 92vh; min-height: 500px; display: flex; flex-direction: column; border-top: 1px solid rgba(192,57,43,0.3); }
 .chat-scroll-mobile { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; padding: 10px 0; }
-.m-bubble { max-width: 80%; padding: 12px 18px; border-radius: 20px; font-size: 0.95rem; line-height: 1.6; }
+.m-bubble { max-width: 80%; padding: 12px 18px; border-radius: 20px; font-size: 0.95rem; line-height: 1.6; min-height: 45px; display: flex; align-items: center; }
 .m-bubble.dragon { align-self: flex-start; background: #111; color: #eee; border-radius: 5px 20px 20px 20px; border: 1px solid rgba(255,255,255,0.05); }
 .m-bubble.user { align-self: flex-end; background: #c0392b; color: #fff; border-radius: 20px 5px 20px 20px; }
-.chat-input-mobile { display: flex; gap: 10px; padding: 15px 20px 30px; background: #080808; }
-.chat-input-mobile input { flex: 1; background: #1a1a1a; border: 1px solid #333; color: #fff; padding: 12px; border-radius: 12px; font-size: 1rem; }
-.chat-input-mobile button { background: #c0392b; color: #fff; border: none; padding: 0 20px; border-radius: 12px; font-weight: bold; }
+.chat-input-mobile { display: flex; gap: 10px; padding: 12px 15px; background: #080808; border-top: 1px solid rgba(255,255,255,0.05); }
+.chat-input-mobile input { flex: 1; background: #1a1a1a; border: 1px solid #333; color: #fff; padding: 10px; border-radius: 12px; font-size: 0.9rem; }
+.chat-input-mobile button { background: #c0392b; color: #fff; border: none; padding: 0 15px; border-radius: 12px; font-weight: bold; font-size: 0.85rem; }
+.btn-m-magic { background: linear-gradient(135deg, #c0392b, #8e44ad) !important; padding: 0 15px !important; font-size: 0.85rem !important; }
 
-.inv-drawer { height: 70vh; }
-.inv-grid-mobile { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; overflow-y: auto; }
-.inv-slot { position: relative; background: #111; aspect-ratio: 1; border-radius: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #222; }
-.inv-icon { font-size: 1.8rem; margin-bottom: 5px; }
-.inv-num { font-size: 0.7rem; color: #c0392b; font-weight: 900; }
-.inv-name { font-size: 0.65rem; color: #555; }
+.inv-drawer { height: 80vh; display: flex; flex-direction: column; border-top: 1px solid rgba(192,57,43,0.4); }
+.inv-grid-mobile { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; overflow-y: auto; padding: 15px 15px 80px; flex: 1; }
+.inv-slot { position: relative; background: #111; aspect-ratio: 1; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #222; }
+.inv-icon { font-size: 1.2rem; margin-bottom: 2px; }
+.inv-num { font-size: 0.6rem; color: #c0392b; font-weight: 900; position: absolute; top: 5px; right: 8px; }
+.inv-name { font-size: 0.55rem; color: #666; transform: scale(0.9); }
 .inv-use-btn { position: absolute; inset: 0; background: rgba(192,57,43,0.9); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 900; border-radius: 20px; }
 
 .mobile-magic-fix { position: absolute; inset: 0; background: transparent; z-index: 10; }
@@ -1408,9 +1347,7 @@ onBeforeUnmount(() => clearInterval(pollTimer));
 
 @keyframes hero-pulse { 0%, 100% { transform: scale(1); opacity: 0.15; } 50% { transform: scale(1.2); opacity: 0.25; } }
 
-@media (max-width: 600px) {
-  .top-status-bar, .raising-grid, .bottom-section { display: none !important; }
-}
+
 .status-bar-header { 
   display: flex; justify-content: space-between; align-items: flex-end; 
   padding: 10px 20px 5px; border-bottom: 1px solid rgba(255,255,255,0.05);
@@ -1419,14 +1356,16 @@ onBeforeUnmount(() => clearInterval(pollTimer));
 .s-b-hint { font-size: 0.7rem; color: #c0392b; opacity: 0.8; }
 .global-status-tags { display: flex; gap: 10px; padding: 15px 20px; flex-wrap: wrap; background: rgba(255,255,255,0.02); }
 
-.status-bar-header-m { padding: 8px 15px 0; background: rgba(0,0,0,0.2); }
-.s-b-hint-m { font-size: 0.65rem; color: #ff4d4d; }
+
 
 /* 龙语气泡样式 */
 .dragon-speech-bubble {
   position: absolute;
   z-index: 10000;
   cursor: pointer;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
   filter: drop-shadow(0 10px 20px rgba(0,0,0,0.5));
   transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }

@@ -179,9 +179,14 @@ const fmtDate = t => {
 @keyframes fade-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
 
 @media (max-width: 900px) {
-  .journal-sections { grid-template-columns: 1fr; }
-  .profile-container { padding: 0 20px; }
-  .pf-identity { flex-direction: column; text-align: center; }
-  .pf-avatar-wrap { margin: 0 auto; }
+  .journal-sections { grid-template-columns: 1fr; gap: 20px; }
+  .profile-container { padding: 0 12px; width: 100%; box-sizing: border-box; }
+  .pf-identity { flex-direction: column; text-align: center; gap: 15px; }
+  .pf-avatar-wrap { margin: 0 auto; width: 70px; height: 70px; }
+  .pf-nickname { font-size: 1.4rem; }
+  .pf-badge-row { justify-content: center; flex-wrap: wrap; gap: 8px; font-size: 0.8rem; }
+  .pf-exp { border-left: none; padding-left: 0; width: 100%; margin-top: 5px; opacity: 0.6; }
+  .profile-card { padding: 25px 15px; border-radius: 20px; margin-bottom: 25px; width: 100%; box-sizing: border-box; }
+  .journal-block { padding: 15px; border-radius: 20px; width: 100%; box-sizing: border-box; }
 }
 </style>

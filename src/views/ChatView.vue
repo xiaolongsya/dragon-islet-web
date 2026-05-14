@@ -118,15 +118,16 @@
                   </div>
                 </div>
               </div>
+              <div class="magic-confirm-row">
+                <button class="btn-confirm-magic" @click="handleGenerate" :disabled="!inputContent.trim() || isChecking || postCooldown > 0">
+                  开启幻化 <span class="m-count">{{ magicUsage }}/5</span>
+                </button>
+              </div>
             </div>
           </transition>
 
           <div class="input-main">
-            <div class="magic-entry-wrap">
-              <button class="btn-text-act btn-toggle-settings" @click="showMagicSettings = !showMagicSettings" :class="{active: showMagicSettings}">
-                调节
-              </button>
-            </div>
+
 
             <textarea 
               v-model="inputContent" 
@@ -144,10 +145,10 @@
                       @click="handleSend">誓约</button>
               
               <button class="btn-text-act btn-gen-magic" 
-                      :disabled="!inputContent.trim() || isChecking || postCooldown > 0 || isVerifying" 
-                      @click="handleGenerate">
+                      :class="{ active: showMagicSettings }"
+                      :disabled="isChecking || postCooldown > 0 || isVerifying" 
+                      @click="showMagicSettings = !showMagicSettings">
                 {{ isChecking ? '感应中...' : '幻化' }}
-                <span class="magic-count" v-if="isLoggedIn">{{ magicUsage }}/5</span>
               </button>
             </div>
           </div>
@@ -418,6 +419,20 @@ onMounted(() => {
   box-shadow: 0 5px 15px rgba(192,57,43,0.3);
 }
 
+.magic-confirm-row { margin-top: 30px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 25px; display: flex; justify-content: center; }
+.btn-confirm-magic {
+  width: 100%; max-width: 400px; height: 50px;
+  background: linear-gradient(135deg, #c0392b, #8e44ad);
+  color: #fff; border: none; border-radius: 16px;
+  font-size: 1rem; font-weight: 900; letter-spacing: 4px;
+  cursor: pointer; transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 10px 20px rgba(192,57,43,0.3);
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+}
+.btn-confirm-magic:hover:not(:disabled) { transform: scale(1.02) translateY(-2px); box-shadow: 0 15px 30px rgba(192,57,43,0.5); filter: brightness(1.1); }
+.btn-confirm-magic:disabled { opacity: 0.3; cursor: not-allowed; filter: grayscale(1); }
+.m-count { font-size: 0.75rem; opacity: 0.6; font-weight: normal; background: rgba(0,0,0,0.2); padding: 2px 8px; border-radius: 6px; }
+
 .input-area { position: absolute; bottom: 20px; left: 40px; right: 40px; padding: 16px; border-radius: 28px; z-index: 100; }
 .input-main { display: flex; gap: 12px; align-items: flex-end; }
 textarea { 
@@ -443,14 +458,13 @@ textarea {
 .magic-hint-epic span { color: #888; font-weight: bold; }
 
 @media (max-width: 768px) {
-  .msg-list { padding: 20px 10px 160px; }
-  .input-area { left: 10px; right: 10px; bottom: 10px; border-radius: 20px; padding: 12px; }
-  .input-main { display: grid; grid-template-areas: "txt txt" "set btn"; grid-template-columns: auto 1fr; gap: 8px; }
-  textarea { grid-area: txt; width: 100%; font-size: 0.95rem; }
-  .magic-entry-wrap { grid-area: set; }
-  .btn-group { grid-area: btn; flex: 1; width: 100%; }
-  .btn-text-act { padding: 0 10px; height: 40px; font-size: 0.75rem; min-width: 60px; }
-  .magic-settings-epic { padding: 15px; border-radius: 16px; bottom: calc(100% + 10px); }
+  .msg-list { padding: 20px 10px 180px; }
+  .input-area { left: 0; right: 0; bottom: 0; border-radius: 0; padding: 12px 15px calc(2px + env(safe-area-inset-bottom)); background: rgba(8,8,8,0.98); border-top: 1px solid rgba(192,57,43,0.3); box-shadow: 0 -10px 30px rgba(0,0,0,0.8); }
+  .input-main { display: flex; flex-direction: column; gap: 8px; }
+  textarea { width: 100%; font-size: 0.95rem; min-height: 40px; }
+  .btn-group { width: 100%; display: flex; gap: 8px; }
+  .btn-text-act { flex: 1; height: 38px; font-size: 0.75rem; border-radius: 10px; }
+  .magic-settings-epic { padding: 15px; border-radius: 16px 16px 0 0; bottom: 100%; left: 0; right: 0; }
   .s-label-epic { margin-bottom: 12px; }
   .s-options-epic button { padding: 6px 12px; font-size: 0.7rem; }
 }

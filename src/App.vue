@@ -438,7 +438,7 @@ const handleUpdateManifesto = async () => {
 
 const handleAdminReply = async (fb) => {
   try {
-    await axios.post('/admin/feedback/reply', { id: fb.id, reply_content: fb.replyInput });
+    await axios.post('/admin/feedback/reply', { id: fb.id, content: fb.replyInput });
     showToast('回响已传达', 'success');
     fetchAdminFeedbacks();
   } catch (e) {
