@@ -166,7 +166,7 @@ const myOaths = ref([]);
 const myOathsTotal = ref(0);
 const myOathsPage = ref(1);
 const myFeedbacks = ref([]);
-const userSummary = reactive({ has_dragon: false, all_tasks_done: false });
+const userSummary = reactive({ has_dragon: false, all_tasks_done: false, magic_usage: 0 });
 
 // 弹窗状态
 const authModal = ref(null);
@@ -207,7 +207,7 @@ const viewProps = computed(() => {
     return { quote, displayedQuote: displayedQuote.value, showExplain: showExplain.value, showEnter: showEnter.value, isThinking: isThinking.value, thinkingText: thinkingText.value };
   }
   if (activeView.value === 'chat') {
-    return { messages: messages.value, hasMore: hasMore.value, loadingMore: loadingMore.value, isLoggedIn: isLoggedIn.value, user, dragonAv, defAv, isChecking: isChecking.value, postCooldown: postCooldown.value, isMobile: isMobile.value, hasDragon: userSummary.has_dragon, allTasksDone: userSummary.all_tasks_done };
+    return { messages: messages.value, hasMore: hasMore.value, loadingMore: loadingMore.value, isLoggedIn: isLoggedIn.value, user, dragonAv, defAv, isChecking: isChecking.value, postCooldown: postCooldown.value, isMobile: isMobile.value, hasDragon: userSummary.has_dragon, allTasksDone: userSummary.all_tasks_done, magicUsage: userSummary.magic_usage };
   }
   if (activeView.value === 'archives') {
     return { 
@@ -359,8 +359,8 @@ const handleForceReply = async (id) => {
 const handleGenerateImage = async (data) => {
   isChecking.value = true;
   try {
-    const res = await axios.post('/chat/generate-image', data);
-    messages.value.push(res.data);
+    await axios.post('/chat/generate-image', data);
+    userSummary.magic_usage++;
     startCooldown();
   } catch (e) {
     showToast('幻化失败', 'error');
@@ -593,6 +593,11 @@ const handlePageChange = (p) => {
 };
 
 const handleGetFortune = async () => {
+  if (!isLoggedIn.value) {
+    showToast('游侠请先签定誓约（登录）', 'warning');
+    handleOpenModal('login');
+    return;
+  }
   isFortuneLoading.value = true;
   try {
     const res = await axios.get('/user/fortune');

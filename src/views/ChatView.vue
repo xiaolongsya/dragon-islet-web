@@ -147,6 +147,7 @@
                       :disabled="!inputContent.trim() || isChecking || postCooldown > 0 || isVerifying" 
                       @click="handleGenerate">
                 {{ isChecking ? '感应中...' : '幻化' }}
+                <span class="magic-count" v-if="isLoggedIn">{{ magicUsage }}/5</span>
               </button>
             </div>
           </div>
@@ -185,7 +186,8 @@ const props = defineProps({
   postCooldown: Number,
   isMobile: Boolean,
   hasDragon: Boolean,
-  allTasksDone: Boolean
+  allTasksDone: Boolean,
+  magicUsage: Number
 });
 
 const emit = defineEmits(['send', 'load-more', 'del-msg', 'force-reply', 'generate-image', 'open-modal', 'set-box-ref']);
@@ -378,9 +380,11 @@ onMounted(() => {
 .s-options-epic button.active { background: #c0392b; color: #fff; border-color: #c0392b; box-shadow: 0 0 15px rgba(192,57,43,0.4); }
 
 :deep(.markdown-body img) {
-  max-width: 400px; width: auto; height: auto; border-radius: 12px; margin: 10px 0;
+  max-width: min(100%, 400px); height: auto; border-radius: 12px; margin: 10px 0;
   border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 10px 30px rgba(0,0,0,0.3); display: block;
 }
+
+
 
 .btn-bubble-recall { 
   background: rgba(255,255,255,0.05); border: none; color: #666; 
@@ -496,6 +500,9 @@ textarea {
   background: rgba(255,255,255,0.05); color: #666; border: 1px solid rgba(255,255,255,0.1);
   font-size: 0.65rem; padding: 4px 10px; border-radius: 6px; cursor: pointer; transition: .3s;
 }
+
+.magic-count { font-size: 0.65rem; opacity: 0.6; margin-left: 4px; font-weight: normal; background: rgba(0,0,0,0.3); padding: 1px 4px; border-radius: 4px; }
+.btn-gen-magic:hover .magic-count { opacity: 1; color: #fff; }
 .btn-bubble-recall:hover { color: #c0392b; background: rgba(192,57,43,0.1); border-color: #c0392b; }
 .bubble-actions { position: absolute; right: calc(100% + 10px); top: 50%; transform: translateY(-50%); white-space: nowrap; }
 

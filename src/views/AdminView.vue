@@ -15,6 +15,9 @@
               <span v-if="isGenerating" class="spin-sm">🌀</span>
               {{ isGenerating ? '正在追溯时空...' : '✦ 手动降下今日史诗' }}
             </button>
+            <button class="btn-p btn-monitor" @click="openMonitor">
+              <span class="monitor-icon">📊</span> 岛屿监控
+            </button>
           </div>
         </div>
         <div v-if="items.length===0" class="empty-tip">暂无待审阅的鳞笺</div>
@@ -54,6 +57,10 @@ defineProps({
 defineEmits(['reply', 'change-page', 'manual-generate', 'update-manifesto']);
 
 const fmtDate = t => new Date(t).toLocaleString('zh-CN');
+
+const openMonitor = () => {
+  window.open('https://grafana.xiaolongya.cn/', '_blank');
+};
 </script>
 
 <style scoped>
@@ -87,5 +94,12 @@ const fmtDate = t => new Date(t).toLocaleString('zh-CN');
 .reply-tag { color: #ff4d4d; font-weight: bold; margin-right: 12px; }
 .btn-p { background: #c0392b; color: #fff; border: none; border-radius: 10px; padding: 10px 24px; font-weight: bold; cursor: pointer; transition: .2s; }
 .btn-p:hover { background: #e74c3c; }
+.btn-monitor { 
+  background: linear-gradient(135deg, #2c3e50, #34495e); 
+  border: 1px solid rgba(255,255,255,0.1);
+  display: flex; align-items: center; gap: 8px;
+}
+.btn-monitor:hover { background: #34495e; border-color: #2ecc71; box-shadow: 0 0 15px rgba(46, 204, 113, 0.2); }
+.monitor-icon { font-size: 1.1rem; }
 .btn-sm { padding: 6px 16px; font-size: .8rem; }
 </style>

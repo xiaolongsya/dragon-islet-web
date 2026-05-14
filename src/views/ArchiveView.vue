@@ -260,6 +260,14 @@ const submitPost = () => {
   color: #888;
 }
 
+.markdown-body :deep(img) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+  margin: 10px 0;
+}
+
+
 .t-modal-enter-active, .t-modal-leave-active { transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
 .t-modal-enter-from, .t-modal-leave-to { opacity: 0; transform: scale(0.96) translateY(30px); }
 /* --- 移动端适配 --- */

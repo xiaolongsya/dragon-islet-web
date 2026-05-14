@@ -101,4 +101,18 @@ const luckClass = computed(() => {
 
 .t-modal-enter-active, .t-modal-leave-active { transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
 .t-modal-enter-from, .t-modal-leave-to { opacity: 0; transform: scale(0.85) translateY(40px); filter: blur(10px); }
+
+@media (max-width: 600px) {
+  .modal-card { width: 90%; padding: 25px 20px; border-radius: 28px; }
+  .f-header { margin-bottom: 20px; }
+  .f-verse-box { margin-bottom: 20px; padding: 20px 15px; border-radius: 18px; }
+  .f-verse { font-size: 1.6rem; letter-spacing: 4px; margin-bottom: 12px; }
+  .f-interpretation { font-size: 0.8rem; line-height: 1.6; }
+  .f-grid { grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 25px; }
+  .f-column { padding: 15px 10px; border-radius: 18px; }
+  .f-label { font-size: 1.1rem; margin-bottom: 12px; }
+  .f-item { font-size: 0.8rem; }
+  .f-footer { margin-top: 10px; }
+  .btn-p { padding: 14px; font-size: 0.95rem; border-radius: 14px; }
+}
 </style>
