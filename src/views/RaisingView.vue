@@ -8,188 +8,282 @@
     </div>
 
     <div class="raising-container" v-else-if="hasDragon">
-      <!-- 顶部：全局状态区 -->
-      <div class="top-status-bar glass-card pop">
-        <div class="stat-item">
-          <div class="s-header">
-            <span class="s-icon">🍖</span>
-            <span class="s-label">饱食度</span>
-            <span class="s-num">{{ dragon.hunger }}/{{ dragon.max_hunger }}</span>
+      <!-- 手机端布局容器 (通过 CSS 控制在小屏幕显示) -->
+      <div class="mobile-layout-branch">
+        <!-- 顶部：状态条 (超紧凑) -->
+        <div class="mobile-top-stats glass-card">
+          <div class="m-stat" v-for="s in statsList" :key="s.label">
+            <span class="m-stat-label">{{ s.icon }}</span>
+            <div class="m-stat-bar-bg"><div class="m-stat-fill" :class="s.class" :style="{width: s.val + '%'}"></div></div>
           </div>
-          <div class="s-progress"><div class="s-fill hunger" :style="{width: (dragon.hunger/dragon.max_hunger)*100+'%'}"></div></div>
         </div>
-        <div class="stat-item">
-          <div class="s-header">
-            <span class="s-icon">💖</span>
-            <span class="s-label">心情值</span>
-            <span class="s-num">{{ dragon.happiness }}/{{ dragon.max_happiness }}</span>
+
+        <!-- 中央：灵宠主视觉 (全屏感) -->
+        <div class="mobile-hero-section">
+          <div class="hero-name-row">
+            <h2 class="hero-name">{{ dragon.name }} <span class="hero-rarity" :class="dragon.rarity">{{ rarityText }}</span></h2>
+            <div class="hero-stage">{{ stageText }}</div>
           </div>
-          <div class="s-progress"><div class="s-fill happiness" :style="{width: (dragon.happiness/dragon.max_happiness)*100+'%'}"></div></div>
+
+          <div class="hero-visual-container">
+            <div class="hero-glow"></div>
+            <div v-if="isGenerating" class="magic-loading-wrap mobile-magic-fix">
+              <div class="magic-loading">
+                <div class="orb-wrap"><div class="orb"></div></div>
+                <div class="loading-text">灵力凝聚...</div>
+              </div>
+            </div>
+            <img v-else-if="dragon.image_url && dragon.image_url !== '[GENERATING]'" :src="dragon.image_url" class="hero-img">
+            <div v-else class="hero-magic-placeholder" @click="generateImage">
+              <span>唤起真身</span>
+            </div>
+          </div>
+
+          <!-- 悬浮核心操作 -->
+          <div class="hero-quick-actions">
+            <div class="action-tile" @click="feed">投喂</div>
+            <div class="action-tile" @click="play">陪玩</div>
+            <div class="action-tile" @click="askGuide">求教</div>
+            <div class="action-tile" @click="shareImage">展示</div>
+          </div>
         </div>
-        <div class="stat-item">
-          <div class="s-header">
-            <span class="s-icon">✨</span>
-            <span class="s-label">成长值</span>
-            <span class="s-num" v-if="dragon.stage < 4">{{ dragon.exp }}/{{ nextExp }}</span>
-            <span class="s-num" v-else>MAX</span>
-            <button v-if="dragon.stage < 4 && dragon.exp >= nextExp" class="btn-evolve pulse-gold" @click="evolve" :disabled="isActing">突破进化</button>
+
+        <!-- 底部：模块化导航 (触发抽屉) -->
+        <div class="mobile-modular-nav">
+          <div class="nav-btn" @click="showTasksDrawer = true">
+            <span class="n-icon">📜</span>
+            <span class="n-label">修行</span>
           </div>
-          <div class="s-progress" v-if="dragon.stage < 4"><div class="s-fill exp" :style="{width: (dragon.exp/nextExp)*100+'%'}"></div></div>
-          <div class="s-progress" v-else><div class="s-fill exp-max" style="width: 100%"></div></div>
+          <div class="nav-btn" @click="showChatDrawer = true">
+            <span class="n-icon">💬</span>
+            <span class="n-label">私语</span>
+          </div>
+          <div class="nav-btn" @click="showInventoryDrawer = true">
+            <span class="n-icon">🎒</span>
+            <span class="n-label">行囊</span>
+          </div>
         </div>
-        <div class="stat-item">
-          <div class="s-header">
-            <span class="s-icon">🎐</span>
-            <span class="s-label">今日机缘</span>
-            <span class="s-num">{{ dragon.daily_event_count || 0 }}/10</span>
-          </div>
-          <div class="s-progress"><div class="s-fill event" :style="{width: (dragon.daily_event_count/10*100)+'%'}"></div></div>
+
+        <!-- 所有抽屉面板 (Tasks, Chat, Inventory) -->
+        <div class="drawers-gate">
+          <!-- 任务抽屉 -->
+          <transition name="drawer-slide">
+            <div v-if="showTasksDrawer" class="drawer-mask" @click.self="showTasksDrawer = false">
+              <div class="drawer-card tasks-drawer">
+                <div class="drawer-h"><h3>每日修行</h3><button @click="showTasksDrawer = false">×</button></div>
+                <div class="tasks-scroll">
+                  <div v-for="t in tasks" :key="t.id" class="t-row">
+                    <div class="t-title">{{ taskLabels[t.task_type] || '任务' }} ({{ t.progress }}/{{ t.max_progress }})</div>
+                    <button v-if="t.progress >= t.max_progress && !t.is_claimed" class="btn-t-claim" @click="claimReward(t.id)">领赏</button>
+                    <span v-else-if="t.is_claimed" class="t-done">已圆满</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </transition>
+
+          <!-- 私语抽屉 -->
+          <transition name="drawer-slide">
+            <div v-if="showChatDrawer" class="drawer-mask" @click.self="showChatDrawer = false">
+              <div class="drawer-card chat-drawer">
+                <div class="drawer-h"><h3>灵魂私语</h3><button @click="showChatDrawer = false">×</button></div>
+                <div class="chat-scroll-mobile" ref="mobileChatScroll">
+                  <div v-for="(m, i) in dragonChat" :key="i" class="m-bubble" :class="m.role">{{ m.content }}</div>
+                </div>
+                <div class="chat-input-mobile">
+                  <input v-model="chatInput" @keyup.enter="sendChat" placeholder="倾听它的心声...">
+                  <button @click="sendChat">唤起</button>
+                </div>
+              </div>
+            </div>
+          </transition>
+
+          <!-- 行囊抽屉 -->
+          <transition name="drawer-slide">
+            <div v-if="showInventoryDrawer" class="drawer-mask" @click.self="showInventoryDrawer = false">
+              <div class="drawer-card inv-drawer">
+                <div class="drawer-h"><h3>龙之行囊</h3><button @click="showInventoryDrawer = false">×</button></div>
+                <div class="inv-grid-mobile">
+                  <div v-for="item in items" :key="item.type" class="inv-slot" @click="selectedItem = item.type === selectedItem ? null : item.type">
+                    <div class="inv-icon">{{ getItemIcon(item.type) }}</div>
+                    <div class="inv-num">x{{ item.count }}</div>
+                    <div class="inv-name">{{ getItemName(item.type) }}</div>
+                    <div v-if="selectedItem === item.type && isUsable(item.type)" class="inv-use-btn" @click.stop="useItem(item.type)">使用</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </transition>
         </div>
       </div>
 
-      <!-- 中部：修行核心区 -->
-      <div class="main-content">
-        <!-- 左侧：视觉展示 -->
-        <div class="visual-section pop">
-          <div class="dragon-header">
-            <div class="name-badge" @click="showRename=true">
-              <span class="d-name">{{ dragon.name }}</span>
-              <span class="d-rarity" :class="dragon.rarity">{{ rarityText }}</span>
+      <!-- 桌面端布局容器 (通过 CSS 控制在大屏幕显示) -->
+      <div class="desktop-layout-branch">
+        <!-- 顶部：全局状态区 -->
+        <div class="top-status-bar glass-card pop">
+          <div class="stat-item">
+            <div class="s-header">
+              <span class="s-icon">🍖</span>
+              <span class="s-label">饱食度</span>
+              <span class="s-num">{{ dragon.hunger }}/{{ dragon.max_hunger }}</span>
             </div>
-            <div class="header-right">
-              <div class="d-stage">
-                <span class="stage-tag">{{ stageText }}</span>
-                <span v-if="dragon.personality" class="personality-tag">「{{ dragon.personality }}」</span>
-              </div>
-              <button class="btn-release-trigger" @click="showReleaseModal = true">放生</button>
-            </div>
+            <div class="s-progress"><div class="s-fill hunger" :style="{width: (dragon.hunger/dragon.max_hunger)*100+'%'}"></div></div>
           </div>
-          <!-- 全局状态标签栏 -->
-          <div class="global-status-tags" v-if="dragon.statuses && dragon.statuses.length">
-            <div v-for="st in dragon.statuses" :key="st.id" class="status-tag-pill" :title="st.desc + ' | ' + st.effect">
-              <span class="pulse-dot"></span>
-              {{ st.name }}
+          <div class="stat-item">
+            <div class="s-header">
+              <span class="s-icon">💖</span>
+              <span class="s-label">心情值</span>
+              <span class="s-num">{{ dragon.happiness }}/{{ dragon.max_happiness }}</span>
             </div>
+            <div class="s-progress"><div class="s-fill happiness" :style="{width: (dragon.happiness/dragon.max_happiness)*100+'%'}"></div></div>
           </div>
-
-          <div class="nest-core">
-            <div class="dragon-visual-wrap" :class="[{ 'egg-stage': dragon.stage === 0 }, dragon.rarity]">
-              <div class="visual-glow"></div>
-              <div v-if="isGenerating" class="magic-loading-wrap">
-                <div class="magic-loading">
-                  <div class="orb-wrap"><div class="orb"></div></div>
-                  <div class="loading-text">灵力凝聚中...</div>
-                </div>
-              </div>
-              <div v-else-if="dragon.image_url && dragon.image_url !== '[GENERATING]'" class="image-with-share">
-                <img :src="dragon.image_url" class="dragon-img" @load="imgLoaded = true">
-                <button class="btn-share-img" @click="shareImage" :disabled="isActing">展示真身</button>
-              </div>
-              <div v-else class="magic-entry" @click="generateImage">
-                <div class="magic-btn-inner">
-                  <span class="m-text">幻化真身</span>
-                  <span class="m-sub">MANIFEST SPIRIT</span>
-                </div>
-              </div>
+          <div class="stat-item">
+            <div class="s-header">
+              <span class="s-icon">✨</span>
+              <span class="s-label">成长值</span>
+              <span class="s-num" v-if="dragon.stage < 4">{{ dragon.exp }}/{{ nextExp }}</span>
+              <span class="s-num" v-else>MAX</span>
+              <button v-if="dragon.stage < 4 && dragon.exp >= nextExp" class="btn-evolve pulse-gold" @click="evolve" :disabled="isActing">突破进化</button>
             </div>
+            <div class="s-progress" v-if="dragon.stage < 4"><div class="s-fill exp" :style="{width: (dragon.exp/nextExp)*100+'%'}"></div></div>
+            <div class="s-progress" v-else><div class="s-fill exp-max" style="width: 100%"></div></div>
           </div>
-
-          <div class="quick-actions">
-            <button class="act-btn" @click="feed" :disabled="isActing">投喂</button>
-            <button class="act-btn" @click="play" :disabled="isActing">互动</button>
-            <button class="act-btn" @click="askGuide" :disabled="isActing">求教</button>
-            <button class="act-btn" @click="share" :disabled="isActing">分享</button>
+          <div class="stat-item">
+            <div class="s-header">
+              <span class="s-icon">🎐</span>
+              <span class="s-label">今日机缘</span>
+              <span class="s-num">{{ dragon.daily_event_count || 0 }}/10</span>
+            </div>
+            <div class="s-progress"><div class="s-fill event" :style="{width: (dragon.daily_event_count/10*100)+'%'}"></div></div>
           </div>
         </div>
 
-        <!-- 右侧：动态面板 (修行任务 / 灵魂私语) -->
-        <div class="tasks-section glass-card pop">
-          <div class="panel-tabs">
-            <div class="p-tab" :class="{active: activePanel === 'tasks'}" @click="activePanel = 'tasks'">每日修行</div>
-            <div class="p-tab" :class="{active: activePanel === 'chat'}" @click="activePanel = 'chat'">灵魂私语</div>
+        <div class="raising-grid">
+          <!-- 左侧：视觉展示 -->
+          <div class="visual-section pop">
+            <div class="dragon-header">
+              <div class="name-badge" @click="showRename=true">
+                <span class="d-name">{{ dragon.name }}</span>
+                <span class="d-rarity" :class="dragon.rarity">{{ rarityText }}</span>
+              </div>
+              <div class="header-right">
+                <div class="d-stage">
+                  <span class="stage-tag">{{ stageText }}</span>
+                  <span v-if="dragon.personality" class="personality-tag">「{{ dragon.personality }}」</span>
+                </div>
+                <button class="btn-release-trigger" @click="showReleaseModal = true">放生</button>
+              </div>
+            </div>
+            <!-- 全局状态标签栏 -->
+            <div class="global-status-tags" v-if="dragon.statuses && dragon.statuses.length">
+              <div v-for="st in dragon.statuses" :key="st.id" class="status-tag-pill" :title="st.desc + ' | ' + st.effect">
+                <span class="pulse-dot"></span>
+                {{ st.name }}
+              </div>
+            </div>
+
+            <div class="nest-core">
+              <div class="dragon-visual-wrap" :class="[{ 'egg-stage': dragon.stage === 0 }, dragon.rarity]">
+                <div class="visual-glow"></div>
+                <div v-if="isGenerating" class="magic-loading-wrap">
+                  <div class="magic-loading">
+                    <div class="orb-wrap"><div class="orb"></div></div>
+                    <div class="loading-text">灵力凝聚中...</div>
+                  </div>
+                </div>
+                <div v-else-if="dragon.image_url && dragon.image_url !== '[GENERATING]'" class="image-with-share">
+                  <img :src="dragon.image_url" class="dragon-img" @load="imgLoaded = true">
+                  <button class="btn-share-img" @click="shareImage" :disabled="isActing">展示真身</button>
+                </div>
+                <div v-else class="magic-entry" @click="generateImage">
+                  <div class="magic-btn-inner">
+                    <span class="m-text">幻化真身</span>
+                    <span class="m-sub">MANIFEST SPIRIT</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="quick-actions">
+              <button class="act-btn" @click="feed" :disabled="isActing">投喂</button>
+              <button class="act-btn" @click="play" :disabled="isActing">互动</button>
+              <button class="act-btn" @click="askGuide" :disabled="isActing">求教</button>
+              <button class="act-btn" @click="shareImage" :disabled="isActing">分享</button>
+            </div>
           </div>
 
-          <!-- 任务列表 -->
-          <div v-if="activePanel === 'tasks'" class="tasks-list-wrap">
-            <div class="card-header-flex">
-              <span class="rarity-bonus" v-if="dragon.rarity !== 'common'">{{ dragon.rarity === 'epic' ? '5.0x' : '2.5x' }} 奖励</span>
+          <!-- 右侧：任务与对话 -->
+          <div class="tasks-section glass-card pop">
+            <div class="panel-tabs">
+              <div class="p-tab" :class="{active: activePanel === 'tasks'}" @click="activePanel = 'tasks'">每日修行</div>
+              <div class="p-tab" :class="{active: activePanel === 'chat'}" @click="activePanel = 'chat'">灵魂私语</div>
             </div>
-            <div class="tasks-list">
-              <div v-if="tasks.length===0" class="task-empty">暂无修行任务</div>
-              <div v-for="task in tasks" :key="task.id" class="task-item" :class="{ 'is-completed': task.progress >= task.max_progress, 'is-claimed': task.is_claimed }">
-                <div class="t-info">
-                  <div class="t-name">{{ taskLabels[task.task_type || task.TaskType] || '修行任务' }}</div>
-                  <div class="t-progress-text">{{ task.progress ?? 0 }}/{{ task.max_progress || task.MaxProgress || 1 }}</div>
+
+            <!-- 任务列表 -->
+            <div v-if="activePanel === 'tasks'" class="tasks-list-wrap">
+              <div class="card-header-flex">
+                <span class="rarity-bonus" v-if="dragon.rarity !== 'common'">{{ dragon.rarity === 'epic' ? '5.0x' : '2.5x' }} 奖励</span>
+              </div>
+              <div class="tasks-list">
+                <div v-if="tasks.length===0" class="task-empty">暂无修行任务</div>
+                <div v-for="task in tasks" :key="task.id" class="task-item" :class="{ 'is-completed': task.progress >= task.max_progress, 'is-claimed': task.is_claimed }">
+                  <div class="t-info">
+                    <div class="t-name">{{ taskLabels[task.task_type] || '修行任务' }}</div>
+                    <div class="t-progress-text">{{ task.progress }}/{{ task.max_progress }}</div>
+                  </div>
+                  <div class="t-action">
+                    <button v-if="task.progress >= task.max_progress && !task.is_claimed" class="btn-claim-reward" @click="claimReward(task.id)">领赏</button>
+                    <span v-else-if="task.is_claimed" class="t-status-done">已圆满</span>
+                    <div v-else class="t-mini-bar"><div class="t-mini-fill" :style="{width: (task.progress/task.max_progress*100)+'%'}"></div></div>
+                  </div>
                 </div>
-                <div class="t-action">
-                  <button v-if="task.progress >= task.max_progress && !task.is_claimed" class="btn-claim-reward" @click="claimReward(task.id)">领赏</button>
-                  <span v-else-if="task.is_claimed" class="t-status-done">已圆满</span>
-                  <div v-else class="t-mini-bar"><div class="t-mini-fill" :style="{width: (task.progress/task.max_progress*100)+'%'}"></div></div>
+              </div>
+            </div>
+
+            <!-- 私语界面 -->
+            <div v-else class="dragon-chat-wrap">
+              <div class="soul-status">
+                <div class="soul-personality">
+                  <span class="s-p-label">灵魂特质:</span>
+                  <span class="s-p-val">{{ dragon.soul || '纯净无瑕' }}</span>
                 </div>
+              </div>
+
+              <div class="d-chat-messages" ref="chatScroll">
+                <div v-for="(msg, idx) in dragonChat" :key="idx" class="d-msg" :class="msg.role">
+                  <div class="d-msg-bubble" :class="{ thinking: !msg.content && msg.role === 'dragon' }">
+                    {{ msg.content || (msg.role === 'dragon' ? '...' : '') }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-chat-input-row">
+                <input v-model="chatInput" @keyup.enter="sendChat" placeholder="倾听它的心声..." :disabled="isChatting">
+                <button @click="sendChat" :disabled="isChatting || !chatInput.trim()">唤起</button>
               </div>
             </div>
           </div>
+        </div>
 
-          <!-- 私聊界面 -->
-          <div v-else class="dragon-chat-wrap">
-            <div class="soul-status">
-              <div class="soul-personality">
-                <span class="s-p-label">灵魂特质:</span>
-                <span class="s-p-val">{{ dragon.soul || '纯净无瑕，待你塑魂' }}</span>
-              </div>
-              <div class="soul-memory" v-if="dragon.memory">
-                <span class="s-p-label">深层记忆:</span>
-                <span class="s-p-val">{{ dragon.memory }}</span>
-              </div>
-            </div>
-
-            <div class="d-chat-messages" ref="chatScroll">
-              <div v-if="hasMoreChat" class="chat-load-more" @click="loadMoreChat">查看更多往昔回顾...</div>
-              <div v-for="(msg, idx) in dragonChat" :key="idx" class="d-msg" :class="msg.role">
-                <div class="d-msg-bubble" :class="{ thinking: !msg.content && msg.role === 'dragon' }">
-                  {{ msg.content || (msg.role === 'dragon' ? '...' : '') }}
+        <!-- 底部：行囊 (桌面端常驻) -->
+        <div class="bottom-section glass-card pop">
+          <div class="card-header">龙之囊中物</div>
+          <div class="items-grid-scroll">
+            <div v-if="items.length===0" class="item-empty">空空如也</div>
+            <div v-for="item in items" :key="item.type" class="item-slot" :class="{ 'is-selected': selectedItem === item.type }" @click="selectedItem = item.type === selectedItem ? null : item.type">
+              <div class="item-icon">{{ getItemIcon(item.type) }}</div>
+              <div class="item-count">x{{ item.count }}</div>
+              <div class="item-name-tag">{{ getItemName(item.type) }}</div>
+              
+              <transition name="fade">
+                <div v-if="selectedItem === item.type && isUsable(item.type)" class="use-overlay">
+                  <button class="btn-use-inner" @click.stop="useItem(item.type)">使用</button>
                 </div>
-              </div>
-            </div>
-
-            <div class="d-chat-input-row">
-              <input v-model="chatInput" @keyup.enter="sendChat" placeholder="倾听它的心声..." :disabled="isChatting">
-              <button @click="sendChat" :disabled="isChatting || !chatInput.trim()">唤起</button>
+              </transition>
             </div>
           </div>
         </div>
       </div>
-
-      <!-- 底部：囊中之物 -->
-      <div class="bottom-section glass-card pop">
-        <div class="card-header">龙之囊中物</div>
-        <div class="items-grid-scroll">
-          <div v-if="items.length===0" class="item-empty">空空如也</div>
-          <div v-for="item in items" :key="item.type" class="item-slot" :class="{ 'is-selected': selectedItem === item.type }" @click="selectedItem = item.type === selectedItem ? null : item.type">
-            <div class="item-icon">{{ getItemIcon(item.type) }}</div>
-            <div class="item-count">x{{ item.count }}</div>
-            <div class="item-name-tag">{{ getItemName(item.type) }}</div>
-            
-            <!-- 使用遮罩层 -->
-            <transition name="fade">
-              <div v-if="selectedItem === item.type && isUsable(item.type)" class="use-overlay">
-                <button class="btn-use-inner" @click.stop="useItem(item.type)">使用</button>
-              </div>
-            </transition>
-          </div>
-        </div>
-      </div>
-
-      <!-- 奇遇弹窗 -->
-      <transition name="fade">
-        <div v-if="randomEvent" class="event-overlay" @click="randomEvent = null">
-          <div class="event-card" @click.stop>
-            <div class="event-title">◈ 奇遇时刻 ◈</div>
-            <div class="event-story">{{ randomEvent }}</div>
-            <button class="event-close" @click="randomEvent = null">铭记于心</button>
-          </div>
-        </div>
-      </transition>
     </div>
 
     <!-- 无龙状态 -->
@@ -217,6 +311,17 @@
         <button class="btn-goto-plaza pulse-gold" @click="$emit('switch-view', 'chat')">前往广场</button>
       </div>
     </div>
+
+    <!-- 奇遇弹窗 (全局层级) -->
+    <transition name="fade">
+      <div v-if="randomEvent" class="event-overlay" @click="randomEvent = null">
+        <div class="event-card" @click.stop>
+          <div class="event-title">◈ 奇遇时刻 ◈</div>
+          <div class="event-story">{{ randomEvent }}</div>
+          <button class="event-close" @click="randomEvent = null">铭记于心</button>
+        </div>
+      </div>
+    </transition>
 
     <!-- 改名弹窗 -->
     <transition name="pop">
@@ -251,6 +356,9 @@
 </template>
 
 <script setup>
+const props = defineProps(['isLoggedIn', 'user', 'defAv', 'isMobile']);
+const emit = defineEmits(['open-modal', 'switch-view']);
+
 import { ref, onMounted, computed, watch, onBeforeUnmount } from 'vue';
 import axios from 'axios';
 
@@ -280,6 +388,12 @@ const isChatting = ref(false);
 const chatPage = ref(1);
 const hasMoreChat = ref(true);
 const chatScroll = ref(null);
+const mobileChatScroll = ref(null);
+
+// 手机端抽屉状态
+const showTasksDrawer = ref(false);
+const showChatDrawer = ref(false);
+const showInventoryDrawer = ref(false);
 
 const getItemIcon = (type) => {
   const icons = { 'food': '◆', 'exp_pill': '◈', 'sacrifice_stone': '◇' };
@@ -313,6 +427,19 @@ const newName = ref('');
 const isGenerating = ref(false);
 const imgLoaded = ref(false);
 
+const nextExp = computed(() => {
+  if (dragon.value.stage >= 4) return 0; // 无上限
+  const map = [100, 300, 800, 2000];
+  return map[dragon.value.stage] || 5000;
+});
+
+const statsList = computed(() => [
+  { label: '饱食度', icon: '🍖', val: (dragon.value.hunger/dragon.value.max_hunger)*100, text: `${dragon.value.hunger}/${dragon.value.max_hunger}`, class: 'hunger' },
+  { label: '心情值', icon: '💖', val: (dragon.value.happiness/dragon.value.max_happiness)*100, text: `${dragon.value.happiness}/${dragon.value.max_happiness}`, class: 'happiness' },
+  { label: '成长值', icon: '✨', val: dragon.value.stage < 4 ? (dragon.value.exp/nextExp.value)*100 : 100, text: dragon.value.stage < 4 ? `${dragon.value.exp}/${nextExp.value}` : 'MAX', class: 'exp' },
+  { label: '今日机缘', icon: '🎐', val: (dragon.value.daily_event_count/10)*100, text: `${dragon.value.daily_event_count || 0}/10`, class: 'event' }
+]);
+
 const rarityText = computed(() => {
   const map = { 'common': '凡俗', 'rare': '珍稀', 'epic': '史诗' };
   return map[dragon.value.rarity] || '未知';
@@ -321,11 +448,6 @@ const rarityText = computed(() => {
 const stageText = computed(() => {
   const map = ['龙蛋', '幼龙', '青年龙', '壮年龙', '真龙'];
   return map[dragon.value.stage] || '幻化中';
-});
-
-const nextExp = computed(() => {
-  if (dragon.value.stage >= 4) return 0; // 无上限
-  return (dragon.value.stage + 1) * 200;
 });
 
 const evolve = async () => {
@@ -442,11 +564,20 @@ const scrollToBottom = () => {
     if (chatScroll.value) {
       chatScroll.value.scrollTop = chatScroll.value.scrollHeight;
     }
+    if (mobileChatScroll.value) {
+      mobileChatScroll.value.scrollTop = mobileChatScroll.value.scrollHeight;
+    }
   }, 100);
 };
 
 watch(activePanel, (newVal) => {
   if (newVal === 'chat') {
+    scrollToBottom();
+  }
+});
+
+watch(showChatDrawer, (newVal) => {
+  if (newVal) {
     scrollToBottom();
   }
 });
@@ -563,14 +694,27 @@ onBeforeUnmount(() => clearInterval(pollTimer));
 
 <style scoped>
 .view-raising { 
-  flex: 1; display: flex; flex-direction: column; min-height: 100vh; 
+  flex: 1; display: flex; flex-direction: column; height: 100vh;
   position: relative; background: transparent;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .raising-container { 
   max-width: 1200px; width: 100%; margin: 0 auto; 
   padding: 20px; display: flex; flex-direction: column; gap: 20px;
+  background: radial-gradient(circle at top right, rgba(192,57,43,0.05), transparent 60%);
 }
+
+.loading-state {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 20px; color: #666; font-family: 'Noto Serif SC', serif; letter-spacing: 4px;
+}
+.loading-orb {
+  width: 40px; height: 40px; border: 2px solid #c0392b; border-radius: 50%;
+  border-top-color: transparent; animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 .glass-card { 
   background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); 
@@ -607,7 +751,7 @@ onBeforeUnmount(() => clearInterval(pollTimer));
 @keyframes magic-flow { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
 
 /* 中部：主内容区 */
-.main-content { 
+.raising-grid { 
 	display: grid; grid-template-columns: 1fr 400px; gap: 20px;
 }
 
@@ -806,21 +950,15 @@ onBeforeUnmount(() => clearInterval(pollTimer));
 .btn-use-inner:hover { transform: scale(1.1); }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 
-/* 响应式适配 */
+/* 桌面端布局适配 */
 @media (max-width: 1000px) {
-  .main-content { grid-template-columns: 1fr; }
+  .raising-grid { grid-template-columns: 1fr; }
   .tasks-section { height: 300px; }
   .top-status-bar { grid-template-columns: repeat(2, 1fr); gap: 15px; }
 }
 
-@media (max-width: 600px) {
-  .raising-container { padding: 15px 15px 100px; gap: 15px; }
-  .d-name { font-size: 1.8rem; }
-  .nest-core { padding: 10px 0; }
-  .dragon-visual-wrap { border-radius: 24px; }
-  .quick-actions { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-  .item-slot { min-width: 70px; height: 70px; }
-}
+.drawer-slide-enter-active, .drawer-slide-leave-active { transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+.drawer-slide-enter-from, .drawer-slide-leave-to { transform: translateY(100%); }
 
 /* 弹窗与其它 */
 .event-overlay {
@@ -879,4 +1017,104 @@ onBeforeUnmount(() => clearInterval(pollTimer));
 .btn-goto-plaza:hover { transform: scale(1.05); background: #e74c3c; }
 
 @keyframes pop-in { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+
+/* 响应式分支控制 */
+.mobile-layout-branch { display: none; }
+.desktop-layout-branch { display: block; flex: 1; display: flex; flex-direction: column; gap: 20px; }
+
+@media (max-width: 600px) {
+  .desktop-layout-branch { display: none !important; }
+  .mobile-layout-branch { 
+    display: flex; flex-direction: column; height: 100vh; overflow: hidden; 
+    padding: 0; gap: 0; background: #050505;
+  }
+  .raising-container.pop, .raising-container.empty-state {
+    height: 100vh; display: flex; flex-direction: column; justify-content: center;
+    background: #050505; padding: 20px;
+  }
+}
+
+.mobile-top-stats {
+  padding: 10px 15px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;
+  background: rgba(15,15,15,0.8); border-radius: 0 0 20px 20px; border: none; border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.m-stat { display: flex; align-items: center; gap: 6px; }
+.m-stat-label { font-size: 0.9rem; }
+.m-stat-bar-bg { flex: 1; height: 4px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; }
+.m-stat-fill { height: 100%; border-radius: 10px; transition: 0.5s; }
+
+.mobile-hero-section {
+  flex: 1; display: flex; flex-direction: column; position: relative; padding: 20px; min-height: 0;
+}
+.hero-name-row { text-align: center; margin-bottom: 15px; }
+.hero-name { font-family: 'Noto Serif SC', serif; font-size: 1.6rem; color: #fff; margin: 0; }
+.hero-rarity { font-size: 0.65rem; padding: 2px 8px; border-radius: 5px; vertical-align: middle; margin-left: 5px; }
+.hero-stage { font-size: 0.8rem; color: #555; margin-top: 4px; }
+
+.hero-visual-container {
+  flex: 1; position: relative; display: flex; align-items: center; justify-content: center; min-height: 0;
+}
+.hero-glow { position: absolute; width: 80%; height: 80%; background: radial-gradient(circle, rgba(192,57,43,0.15) 0%, transparent 70%); animation: hero-pulse 3s infinite; }
+.hero-img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 32px; filter: drop-shadow(0 20px 50px rgba(0,0,0,0.5)); }
+.hero-magic-placeholder { width: 200px; height: 200px; border: 1px dashed #444; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #444; font-size: 0.9rem; }
+
+.hero-quick-actions {
+  position: absolute; right: 20px; top: 50%; transform: translateY(-50%);
+  display: flex; flex-direction: column; gap: 15px; z-index: 10;
+}
+.action-tile {
+  width: 54px; height: 54px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+  backdrop-filter: blur(10px); border-radius: 18px; display: flex; align-items: center; justify-content: center;
+  color: #aaa; font-size: 0.75rem; font-weight: bold; cursor: pointer;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.2); transition: 0.3s;
+}
+.action-tile:active { transform: scale(0.9) rotate(5deg); background: rgba(192,57,43,0.2); color: #fff; border-color: #c0392b; }
+
+.mobile-modular-nav {
+  height: 80px; display: flex; gap: 1px; background: rgba(255,255,255,0.02);
+  border-top: 1px solid rgba(255,255,255,0.05); padding-bottom: 10px;
+}
+.nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+.n-icon { font-size: 1.4rem; }
+.n-label { font-size: 0.7rem; color: #666; font-weight: bold; }
+
+/* 抽屉全局 */
+.drawer-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(15px); z-index: 5000; }
+.drawer-card { position: absolute; bottom: 0; left: 0; right: 0; background: #080808; border-top: 1px solid rgba(255,255,255,0.1); border-radius: 40px 40px 0 0; padding: 25px; box-shadow: 0 -20px 50px rgba(0,0,0,1); }
+.drawer-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.drawer-h h3 { margin: 0; font-family: 'Noto Serif SC', serif; color: #fff; letter-spacing: 3px; }
+.drawer-h button { background: none; border: none; color: #444; font-size: 2rem; cursor: pointer; }
+
+.tasks-drawer { height: 65vh; }
+.t-row { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid #111; }
+.t-title { font-size: 0.9rem; color: #ccc; }
+.btn-t-claim { background: #c0392b; color: #fff; border: none; padding: 6px 15px; border-radius: 8px; font-size: 0.8rem; }
+.t-done { color: #27ae60; font-size: 0.8rem; }
+
+.chat-drawer { height: 92vh; min-height: 500px; display: flex; flex-direction: column; border-top: 1px solid rgba(192,57,43,0.3); }
+.chat-scroll-mobile { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; padding: 10px 0; }
+.m-bubble { max-width: 80%; padding: 12px 18px; border-radius: 20px; font-size: 0.95rem; line-height: 1.6; }
+.m-bubble.dragon { align-self: flex-start; background: #111; color: #eee; border-radius: 5px 20px 20px 20px; border: 1px solid rgba(255,255,255,0.05); }
+.m-bubble.user { align-self: flex-end; background: #c0392b; color: #fff; border-radius: 20px 5px 20px 20px; }
+.chat-input-mobile { display: flex; gap: 10px; padding: 15px 20px 30px; background: #080808; }
+.chat-input-mobile input { flex: 1; background: #1a1a1a; border: 1px solid #333; color: #fff; padding: 12px; border-radius: 12px; font-size: 1rem; }
+.chat-input-mobile button { background: #c0392b; color: #fff; border: none; padding: 0 20px; border-radius: 12px; font-weight: bold; }
+
+.inv-drawer { height: 70vh; }
+.inv-grid-mobile { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; overflow-y: auto; }
+.inv-slot { position: relative; background: #111; aspect-ratio: 1; border-radius: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #222; }
+.inv-icon { font-size: 1.8rem; margin-bottom: 5px; }
+.inv-num { font-size: 0.7rem; color: #c0392b; font-weight: 900; }
+.inv-name { font-size: 0.65rem; color: #555; }
+.inv-use-btn { position: absolute; inset: 0; background: rgba(192,57,43,0.9); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 900; border-radius: 20px; }
+
+.mobile-magic-fix { position: absolute; inset: 0; background: transparent; z-index: 10; }
+.mobile-magic-fix .orb-wrap { width: 80px; height: 80px; }
+.mobile-magic-fix .loading-text { font-size: 0.8rem; }
+
+@keyframes hero-pulse { 0%, 100% { transform: scale(1); opacity: 0.15; } 50% { transform: scale(1.2); opacity: 0.25; } }
+
+@media (max-width: 600px) {
+  .top-status-bar, .raising-grid, .bottom-section { display: none !important; }
+}
 </style>

@@ -593,6 +593,11 @@ const handlePageChange = (p) => {
 };
 
 const handleGetFortune = async () => {
+  if (!isLoggedIn.value) {
+    showToast('游侠请先签定誓约（登录）', 'warning');
+    handleOpenModal('login');
+    return;
+  }
   isFortuneLoading.value = true;
   try {
     const res = await axios.get('/user/fortune');
