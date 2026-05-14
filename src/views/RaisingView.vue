@@ -264,7 +264,33 @@
               <div class="p-tab" :class="{active: activePanel === 'tasks'}" @click="activePanel = 'tasks'">每日修行</div>
               <div class="p-tab" :class="{active: activePanel === 'chat'}" @click="activePanel = 'chat'">灵魂私语</div>
             </div>
+          <!-- 右侧：任务与对话 -->
+          <div class="tasks-section glass-card pop">
+            <div class="panel-tabs">
+              <div class="p-tab" :class="{active: activePanel === 'tasks'}" @click="activePanel = 'tasks'">每日修行</div>
+              <div class="p-tab" :class="{active: activePanel === 'chat'}" @click="activePanel = 'chat'">灵魂私语</div>
+            </div>
 
+            <!-- 任务列表 -->
+            <div v-if="activePanel === 'tasks'" class="tasks-list-wrap">
+              <div class="card-header-flex">
+                <span class="rarity-bonus" v-if="dragon.rarity !== 'common'">{{ dragon.rarity === 'epic' ? '5.0x' : '2.5x' }} 奖励</span>
+              </div>
+              <div class="tasks-list">
+                <div v-if="tasks.length===0" class="task-empty">暂无修行任务</div>
+                <div v-for="task in tasks" :key="task.id" class="task-item" :class="{ 'is-completed': task.progress >= task.max_progress, 'is-claimed': task.is_claimed }">
+                  <div class="t-info">
+                    <div class="t-name">{{ taskLabels[task.task_type] || '修行任务' }}</div>
+                    <div class="t-progress-text">{{ task.progress }}/{{ task.max_progress }}</div>
+                  </div>
+                  <div class="t-action">
+                    <button v-if="task.progress >= task.max_progress && !task.is_claimed" class="btn-claim-reward" @click="claimReward(task.id)">领赏</button>
+                    <span v-else-if="task.is_claimed" class="t-status-done">已圆满</span>
+                    <div v-else class="t-mini-bar"><div class="t-mini-fill" :style="{width: (task.progress/task.max_progress*100)+'%'}"></div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
             <!-- 任务列表 -->
             <div v-if="activePanel === 'tasks'" class="tasks-list-wrap">
               <div class="card-header-flex">
@@ -294,6 +320,14 @@
                   <span class="s-p-val">{{ dragon.soul || '纯净无瑕' }}</span>
                 </div>
               </div>
+            <!-- 私语界面 -->
+            <div v-else class="dragon-chat-wrap">
+              <div class="soul-status">
+                <div class="soul-personality">
+                  <span class="s-p-label">灵魂特质:</span>
+                  <span class="s-p-val">{{ dragon.soul || '纯净无瑕' }}</span>
+                </div>
+              </div>
 
               <div class="d-chat-messages" ref="chatScroll">
                 <div v-for="(msg, idx) in dragonChat" :key="idx" class="d-msg" :class="msg.role">
@@ -302,7 +336,21 @@
                   </div>
                 </div>
               </div>
+              <div class="d-chat-messages" ref="chatScroll">
+                <div v-for="(msg, idx) in dragonChat" :key="idx" class="d-msg" :class="msg.role">
+                  <div class="d-msg-bubble" :class="{ thinking: !msg.content && msg.role === 'dragon' }">
+                    {{ msg.content || (msg.role === 'dragon' ? '...' : '') }}
+                  </div>
+                </div>
+              </div>
 
+              <div class="d-chat-input-row">
+                <input v-model="chatInput" @keyup.enter="sendChat" placeholder="倾听它的心声..." :disabled="isChatting">
+                <button @click="sendChat" :disabled="isChatting || !chatInput.trim()">唤起</button>
+              </div>
+            </div>
+          </div>
+        </div>
               <div class="d-chat-input-row">
                 <input v-model="chatInput" @keyup.enter="sendChat" placeholder="倾听它的心声..." :disabled="isChatting">
                 <button @click="sendChat" :disabled="isChatting || !chatInput.trim()">唤起</button>
@@ -426,6 +474,9 @@
 const props = defineProps(['isLoggedIn', 'user', 'defAv', 'isMobile']);
 const emit = defineEmits(['open-modal', 'switch-view']);
 
+const props = defineProps(['isLoggedIn', 'user', 'defAv', 'isMobile']);
+const emit = defineEmits(['open-modal', 'switch-view']);
+
 import { ref, onMounted, computed, watch, onBeforeUnmount } from 'vue';
 import axios from 'axios';
 
@@ -455,6 +506,12 @@ const isChatting = ref(false);
 const chatPage = ref(1);
 const hasMoreChat = ref(true);
 const chatScroll = ref(null);
+const mobileChatScroll = ref(null);
+
+// 手机端抽屉状态
+const showTasksDrawer = ref(false);
+const showChatDrawer = ref(false);
+const showInventoryDrawer = ref(false);
 const mobileChatScroll = ref(null);
 
 // 手机端抽屉状态
@@ -721,11 +778,20 @@ const scrollToBottom = () => {
     if (mobileChatScroll.value) {
       mobileChatScroll.value.scrollTop = mobileChatScroll.value.scrollHeight;
     }
+    if (mobileChatScroll.value) {
+      mobileChatScroll.value.scrollTop = mobileChatScroll.value.scrollHeight;
+    }
   }, 100);
 };
 
 watch(activePanel, (newVal) => {
   if (newVal === 'chat') {
+    scrollToBottom();
+  }
+});
+
+watch(showChatDrawer, (newVal) => {
+  if (newVal) {
     scrollToBottom();
   }
 });
@@ -850,7 +916,10 @@ onBeforeUnmount(() => clearInterval(pollTimer));
 <style scoped>
 .view-raising { 
   flex: 1; display: flex; flex-direction: column; height: 100vh;
+  flex: 1; display: flex; flex-direction: column; height: 100vh;
   position: relative; background: transparent;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -858,6 +927,18 @@ onBeforeUnmount(() => clearInterval(pollTimer));
 .raising-container { 
   max-width: 1200px; width: 100%; margin: 0 auto; 
   padding: 20px; display: flex; flex-direction: column; gap: 20px;
+  background: radial-gradient(circle at top right, rgba(192,57,43,0.05), transparent 60%);
+}
+
+.loading-state {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 20px; color: #666; font-family: 'Noto Serif SC', serif; letter-spacing: 4px;
+}
+.loading-orb {
+  width: 40px; height: 40px; border: 2px solid #c0392b; border-radius: 50%;
+  border-top-color: transparent; animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
   background: radial-gradient(circle at top right, rgba(192,57,43,0.05), transparent 60%);
 }
 
@@ -906,6 +987,7 @@ onBeforeUnmount(() => clearInterval(pollTimer));
 @keyframes magic-flow { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
 
 /* 中部：主内容区 */
+.raising-grid { 
 .raising-grid { 
 	display: grid; grid-template-columns: 1fr 400px; gap: 20px;
 }
@@ -1133,12 +1215,16 @@ onBeforeUnmount(() => clearInterval(pollTimer));
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 
 /* 桌面端布局适配 */
+/* 桌面端布局适配 */
 @media (max-width: 1000px) {
+  .raising-grid { grid-template-columns: 1fr; }
   .raising-grid { grid-template-columns: 1fr; }
   .tasks-section { height: 300px; }
   .top-status-bar { grid-template-columns: repeat(2, 1fr); gap: 15px; }
 }
 
+.drawer-slide-enter-active, .drawer-slide-leave-active { transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+.drawer-slide-enter-from, .drawer-slide-leave-to { transform: translateY(100%); }
 .drawer-slide-enter-active, .drawer-slide-leave-active { transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
 .drawer-slide-enter-from, .drawer-slide-leave-to { transform: translateY(100%); }
 
